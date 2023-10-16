@@ -1,5 +1,12 @@
 package graph
 
+import (
+	"errors"
+	"fmt"
+
+	"gopkg.in/dnaeon/go-deque.v1"
+)
+
 // Color represents the color with which a vertex is painted
 type Color int
 
@@ -73,6 +80,13 @@ func NewGraph[T comparable]() *Graph[T] {
 	}
 
 	return g
+}
+
+// Resets the attributes for each vertex in the graph
+func (g *Graph[T]) resetVertexAttributes() {
+	for _, v := range g.vertices {
+		v.Color = White
+	}
 }
 
 // GetVertex returns the vertex associated with the given value
@@ -181,4 +195,58 @@ func (g *Graph[T]) AddEdge(from, to T) *Edge[T] {
 	g.adjacencyLists[to] = append(g.adjacencyLists[to], from)
 
 	return e
+}
+
+// WalkFunc is a function which receives a vertex while traversing the
+// graph
+type WalkFunc[T comparable] func(v *Vertex[T]) error
+
+// ErrStopWalking is returned by WalkFunc to signal that further
+// walking of the graph should be stopped.
+var ErrStopWalking = errors.New("walking stopped")
+
+// WalkDFS performs Depth-first Search (DFS) traversal of the graph,
+// starting from the given source vertex.
+func (g *Graph[T]) WalkDFS(source T, walkFunc WalkFunc[T]) error {
+	if !g.VertexExists(source) {
+		return fmt.Errorf("Source vertex %v not foun in the graph", source)
+	}
+
+	srcVertex := g.GetVertex(source)
+
+	// Make sure to reset all vertex attributes
+	g.resetVertexAttributes()
+
+	// Push the source vertex to the stack and paint it
+	srcVertex.Color = Gray
+	stack := deque.New[*Vertex[T]]()
+	stack.PushFront(srcVertex)
+
+	for !stack.IsEmpty() {
+		// Pop an item from the stack
+		v, err := stack.PopFront()
+		if err != nil {
+			return err
+		}
+
+		// Mark current vertex as being explored
+		v.Color = Gray
+
+		// Visit the neigbours of V
+		neighbours := g.GetNeighbourVertices(v.Value)
+		for _, u := range neighbours {
+			// First time seeing this neighbour vertex, push it to the stack
+			if u.Color == White {
+				u.Color = Gray
+				stack.PushFront(u)
+			}
+		}
+
+		walkFunc(v)
+
+		// We are done with vertex V
+		v.Color = Black
+	}
+
+	return nil
 }
