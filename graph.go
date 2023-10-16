@@ -32,13 +32,13 @@ type Vertex[T comparable] struct {
 	// DistanceFromSource returns the distance of this vertex from
 	// the source vertex.  This field is calculated after
 	// performing a DFS or BFS.
-	DistanceFromSource int
+	DistanceFromSource float64
 
 	// Parent represents the parent vertex, which is calculated
-	// after or during walking of the graph.  The resulting
-	// relationships established by this field construct the
-	// DFS-tree, BFS-tree or shortest-path tree, depending on how
-	// we walked the graph.
+	// during walking of the graph.  The resulting relationships
+	// established by this field construct the DFS-tree, BFS-tree
+	// or shortest-path tree, depending on how we walked the
+	// graph.
 	Parent *Vertex[T]
 }
 
@@ -47,7 +47,7 @@ func NewVertex[T comparable](value T) *Vertex[T] {
 	v := &Vertex[T]{
 		Value:              value,
 		Color:              White,
-		DistanceFromSource: 0,
+		DistanceFromSource: 0.0,
 		Parent:             nil,
 	}
 
@@ -61,6 +61,9 @@ type Edge[T comparable] struct {
 
 	// To represents the destination vertex of the edge
 	To T
+
+	// Weight represents the edge weight
+	Weight float64
 }
 
 // NewEdge creates an edge, which connects the given vertices
@@ -101,7 +104,7 @@ func NewGraph[T comparable]() *Graph[T] {
 func (g *Graph[T]) ResetVertexAttributes() {
 	for _, v := range g.vertices {
 		v.Color = White
-		v.DistanceFromSource = 0
+		v.DistanceFromSource = 0.0
 		v.Parent = nil
 	}
 }
