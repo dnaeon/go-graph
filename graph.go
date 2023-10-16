@@ -96,8 +96,9 @@ func NewGraph[T comparable]() *Graph[T] {
 	return g
 }
 
-// Resets the attributes for each vertex in the graph
-func (g *Graph[T]) resetVertexAttributes() {
+// ResetVertexAttributes resets the attributes for each vertex in the
+// graph
+func (g *Graph[T]) ResetVertexAttributes() {
 	for _, v := range g.vertices {
 		v.Color = White
 		v.DistanceFromSource = 0
@@ -229,7 +230,7 @@ func (g *Graph[T]) WalkDFS(source T, walkFunc WalkFunc[T]) error {
 	}
 
 	// Make sure to reset all vertex attributes
-	g.resetVertexAttributes()
+	g.ResetVertexAttributes()
 
 	// Push the source vertex to the stack and paint it
 	srcVertex := g.GetVertex(source)
@@ -256,8 +257,12 @@ func (g *Graph[T]) WalkDFS(source T, walkFunc WalkFunc[T]) error {
 			}
 		}
 
-		if err := walkFunc(v); err == ErrStopWalking {
+		walkErr := walkFunc(v)
+		if walkErr == ErrStopWalking {
 			return nil
+		}
+		if walkErr != nil {
+			return walkErr
 		}
 
 		// We are done with vertex V
@@ -275,7 +280,7 @@ func (g *Graph[T]) WalkBFS(source T, walkFunc WalkFunc[T]) error {
 	}
 
 	// Make sure to reset all vertex attributes
-	g.resetVertexAttributes()
+	g.ResetVertexAttributes()
 
 	// Push the source vertex to the queue and paint it
 	srcVertex := g.GetVertex(source)
@@ -302,8 +307,12 @@ func (g *Graph[T]) WalkBFS(source T, walkFunc WalkFunc[T]) error {
 			}
 		}
 
-		if err := walkFunc(v); err == ErrStopWalking {
+		walkErr := walkFunc(v)
+		if walkErr == ErrStopWalking {
 			return nil
+		}
+		if walkErr != nil {
+			return walkErr
 		}
 
 		// We are done with V
@@ -311,4 +320,50 @@ func (g *Graph[T]) WalkBFS(source T, walkFunc WalkFunc[T]) error {
 	}
 
 	return nil
+}
+
+// WalkUnreachableVertices walks over the vertices which are
+// unreachable from the given source vertex
+func (g *Graph[T]) WalkUnreachableVertices(source T, walkFunc WalkFunc[T]) error {
+	// In order to find all unreachable vertices we will first DFS
+	// traverse the graph.  The vertices which remain White after
+	// we've walked the graph are unreachable from the source
+	// vertex.
+	dummyDfsWalk := func(v *Vertex[T]) error {
+		return nil
+	}
+
+	if err := g.WalkDFS(source, dummyDfsWalk); err != nil {
+		return err
+	}
+
+	for _, v := range g.vertices {
+		if v.Color == White {
+			err := walkFunc(v)
+			if err == ErrStopWalking {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// GetUnreachableVertices returns the list of vertices, which are
+// unreachable from a given source vertex
+func (g *Graph[T]) GetUnreachableVertices(source T) []*Vertex[T] {
+	result := make([]*Vertex[T], 0)
+	walkFunc := func(v *Vertex[T]) error {
+		result = append(result, v)
+		return nil
+	}
+
+	if err := g.WalkUnreachableVertices(source, walkFunc); err != nil {
+		return nil
+	}
+
+	return result
 }
