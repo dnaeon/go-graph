@@ -256,7 +256,9 @@ func (g *Graph[T]) WalkDFS(source T, walkFunc WalkFunc[T]) error {
 			}
 		}
 
-		walkFunc(v)
+		if err := walkFunc(v); err == ErrStopWalking {
+			return nil
+		}
 
 		// We are done with vertex V
 		v.Color = Black
@@ -300,7 +302,9 @@ func (g *Graph[T]) WalkBFS(source T, walkFunc WalkFunc[T]) error {
 			}
 		}
 
-		walkFunc(v)
+		if err := walkFunc(v); err == ErrStopWalking {
+			return nil
+		}
 
 		// We are done with V
 		v.Color = Black
