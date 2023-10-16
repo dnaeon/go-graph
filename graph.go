@@ -225,15 +225,14 @@ var ErrStopWalking = errors.New("walking stopped")
 // starting from the given source vertex.
 func (g *Graph[T]) WalkDFS(source T, walkFunc WalkFunc[T]) error {
 	if !g.VertexExists(source) {
-		return fmt.Errorf("Source vertex %v not foun in the graph", source)
+		return fmt.Errorf("Source vertex %v not found in the graph", source)
 	}
-
-	srcVertex := g.GetVertex(source)
 
 	// Make sure to reset all vertex attributes
 	g.resetVertexAttributes()
 
 	// Push the source vertex to the stack and paint it
+	srcVertex := g.GetVertex(source)
 	srcVertex.Color = Gray
 	stack := deque.New[*Vertex[T]]()
 	stack.PushFront(srcVertex)
@@ -244,9 +243,6 @@ func (g *Graph[T]) WalkDFS(source T, walkFunc WalkFunc[T]) error {
 		if err != nil {
 			return err
 		}
-
-		// Mark current vertex as being explored
-		v.Color = Gray
 
 		// Visit the neigbours of V
 		neighbours := g.GetNeighbourVertices(v.Value)
@@ -263,6 +259,50 @@ func (g *Graph[T]) WalkDFS(source T, walkFunc WalkFunc[T]) error {
 		walkFunc(v)
 
 		// We are done with vertex V
+		v.Color = Black
+	}
+
+	return nil
+}
+
+// WalkBFS performs Breadth-first Search (BFS) traversal of the graph,
+// starting from the given source vertex.
+func (g *Graph[T]) WalkBFS(source T, walkFunc WalkFunc[T]) error {
+	if !g.VertexExists(source) {
+		return fmt.Errorf("Source vertex %v not found in the graph", source)
+	}
+
+	// Make sure to reset all vertex attributes
+	g.resetVertexAttributes()
+
+	// Push the source vertex to the queue and paint it
+	srcVertex := g.GetVertex(source)
+	srcVertex.Color = Gray
+	queue := deque.New[*Vertex[T]]()
+	queue.PushBack(srcVertex)
+
+	for !queue.IsEmpty() {
+		// Pop an item from the queue
+		v, err := queue.PopFront()
+		if err != nil {
+			return err
+		}
+
+		// Visit neighbours of V
+		neighbours := g.GetNeighbourVertices(v.Value)
+		for _, u := range neighbours {
+			// First time seeing this vertex
+			if u.Color == White {
+				u.Color = Gray
+				u.DistanceFromSource = v.DistanceFromSource + 1
+				u.Parent = v
+				queue.PushBack(u)
+			}
+		}
+
+		walkFunc(v)
+
+		// We are done with V
 		v.Color = Black
 	}
 
