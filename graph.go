@@ -74,3 +74,28 @@ func NewGraph[T comparable]() *Graph[T] {
 
 	return g
 }
+
+// GetVertices returns the set of vertices in the graph
+func (g *Graph[T]) GetVertices() []*Vertex[T] {
+	result := make([]*Vertex[T], 0)
+	for _, v := range g.vertices {
+		result = append(result, v)
+	}
+
+	return result
+}
+
+// GetVertexValues returns the set of vertex values
+func (g *Graph[T]) GetVertexValues() []T {
+	result := make([]T, 0)
+	for k := range g.vertices {
+		result = append(result, k)
+	}
+
+	return result
+}
+
+// GetEdges returns the set of edges in the graph
+func (g *Graph[T]) GetEdges() []*Edge[T] {
+	return g.edges
+}
