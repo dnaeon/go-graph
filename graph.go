@@ -51,3 +51,26 @@ func NewEdge[T comparable](from, to T) *Edge[T] {
 
 	return e
 }
+
+// Graph represents an undirected graph
+type Graph[T comparable] struct {
+	// The set of vertices in the graph
+	vertices map[T]*Vertex[T]
+
+	// The set of edges in the graph
+	edges []*Edge[T]
+
+	// The adjacency lists for our vertices
+	adjacencyLists map[T][]T
+}
+
+// NewGraph creates a new graph
+func NewGraph[T comparable]() *Graph[T] {
+	g := &Graph[T]{
+		vertices:       make(map[T]*Vertex[T]),
+		edges:          make([]*Edge[T], 0),
+		adjacencyLists: make(map[T][]T),
+	}
+
+	return g
+}
