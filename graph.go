@@ -75,6 +75,18 @@ func NewGraph[T comparable]() *Graph[T] {
 	return g
 }
 
+// GetVertex returns the vertex associated with the given value
+func (g *Graph[T]) GetVertex(value T) *Vertex[T] {
+	return g.vertices[value]
+}
+
+// VertexExists returns a boolean indicating whether a vertex with the
+// given value exists
+func (g *Graph[T]) VertexExists(value T) bool {
+	_, exists := g.vertices[value]
+	return exists
+}
+
 // GetVertices returns the set of vertices in the graph
 func (g *Graph[T]) GetVertices() []*Vertex[T] {
 	result := make([]*Vertex[T], 0)
@@ -98,4 +110,75 @@ func (g *Graph[T]) GetVertexValues() []T {
 // GetEdges returns the set of edges in the graph
 func (g *Graph[T]) GetEdges() []*Edge[T] {
 	return g.edges
+}
+
+// GetNeighbours returns the list of direct neighbours of V
+func (g *Graph[T]) GetNeighbours(v T) []T {
+	return g.adjacencyLists[v]
+}
+
+// GetNeighbourVertices returns the list of neighbour vertices of V
+func (g *Graph[T]) GetNeighbourVertices(v T) []*Vertex[T] {
+	neighbours := g.GetNeighbours(v)
+	result := make([]*Vertex[T], 0)
+	for _, u := range neighbours {
+		result = append(result, g.GetVertex(u))
+	}
+
+	return result
+}
+
+// AddVertex adds a vertex to the graph
+func (g *Graph[T]) AddVertex(value T) *Vertex[T] {
+	if g.VertexExists(value) {
+		return g.GetVertex(value)
+	}
+
+	vertex := NewVertex(value)
+	g.vertices[value] = vertex
+
+	return vertex
+}
+
+// GetEdge returns the edge connecting the two vertices
+func (g *Graph[T]) GetEdge(from, to T) *Edge[T] {
+	for _, e := range g.edges {
+		if e.From == from && e.To == to {
+			return e
+		}
+	}
+
+	return nil
+}
+
+// EdgeExists returns a boolean indicating whether an edge between two
+// vertices exists.
+func (g *Graph[T]) EdgeExists(from, to T) bool {
+	for _, e := range g.edges {
+		if e.From == from && e.To == to {
+			return true
+		}
+	}
+
+	return false
+}
+
+// AddEdge adds an edge between two vertices in the graph
+func (g *Graph[T]) AddEdge(from, to T) *Edge[T] {
+	if g.EdgeExists(from, to) {
+		return g.GetEdge(from, to)
+	}
+
+	g.AddVertex(from)
+	g.AddVertex(to)
+
+	// Create the edge
+	e := NewEdge(from, to)
+	g.edges = append(g.edges, e)
+
+	// Update the adjacency lists
+	g.adjacencyLists[from] = append(g.adjacencyLists[from], to)
+	g.adjacencyLists[to] = append(g.adjacencyLists[to], from)
+
+	return e
 }
