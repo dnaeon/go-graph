@@ -28,13 +28,27 @@ type Vertex[T comparable] struct {
 
 	// Color represents the color the vertex is painted with
 	Color Color
+
+	// DistanceFromSource returns the distance of this vertex from
+	// the source vertex.  This field is calculated after
+	// performing a DFS or BFS.
+	DistanceFromSource int
+
+	// Parent represents the parent vertex, which is calculated
+	// after or during walking of the graph.  The resulting
+	// relationships established by this field construct the
+	// DFS-tree, BFS-tree or shortest-path tree, depending on how
+	// we walked the graph.
+	Parent *Vertex[T]
 }
 
 // NewVertex creates a new vertex with the given value
 func NewVertex[T comparable](value T) *Vertex[T] {
 	v := &Vertex[T]{
-		Value: value,
-		Color: White,
+		Value:              value,
+		Color:              White,
+		DistanceFromSource: 0,
+		Parent:             nil,
 	}
 
 	return v
@@ -86,6 +100,8 @@ func NewGraph[T comparable]() *Graph[T] {
 func (g *Graph[T]) resetVertexAttributes() {
 	for _, v := range g.vertices {
 		v.Color = White
+		v.DistanceFromSource = 0
+		v.Parent = nil
 	}
 }
 
@@ -238,6 +254,8 @@ func (g *Graph[T]) WalkDFS(source T, walkFunc WalkFunc[T]) error {
 			// First time seeing this neighbour vertex, push it to the stack
 			if u.Color == White {
 				u.Color = Gray
+				u.DistanceFromSource = v.DistanceFromSource + 1
+				u.Parent = v
 				stack.PushFront(u)
 			}
 		}
