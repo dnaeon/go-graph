@@ -69,8 +69,9 @@ type Edge[T comparable] struct {
 // NewEdge creates an edge, which connects the given vertices
 func NewEdge[T comparable](from, to T) *Edge[T] {
 	e := &Edge[T]{
-		From: from,
-		To:   to,
+		From:   from,
+		To:     to,
+		Weight: 0.0,
 	}
 
 	return e
@@ -213,6 +214,15 @@ func (g *Graph[T]) AddEdge(from, to T) *Edge[T] {
 	// Update the adjacency lists
 	g.adjacencyLists[from] = append(g.adjacencyLists[from], to)
 	g.adjacencyLists[to] = append(g.adjacencyLists[to], from)
+
+	return e
+}
+
+// AddWeightedEdge adds an edge between two vertices and sets weight
+// for the edge
+func (g *Graph[T]) AddWeightedEdge(from, to T, weight float64) *Edge[T] {
+	e := g.AddEdge(from, to)
+	e.Weight = weight
 
 	return e
 }
