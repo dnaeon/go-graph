@@ -422,10 +422,16 @@ func (g *Graph[T]) relaxEdge(from, to T) error {
 	return nil
 }
 
-// Dijkstra implements Dijkstra's algorithm for finding the
+// WalkDijkstra implements Dijkstra's algorithm for finding the
 // shortest-path from a given source vertex to all other vertices in
 // the graph.
-func (g *Graph[T]) Dijkstra(source T) error {
+//
+// This method will pass each visited vertex while traversing the
+// graph.
+//
+// In order to stop traversing the graph when a certain destination is
+// reached callers of this method should return ErrStopWalking.
+func (g *Graph[T]) WalkDijkstra(source T, walkFunc WalkFunc[T]) error {
 	if err := g.initializeSourceVertex(source); err != nil {
 		return err
 	}
@@ -449,6 +455,14 @@ func (g *Graph[T]) Dijkstra(source T) error {
 			if u.DistanceFromSource != oldDist {
 				queue.Update(u, u.DistanceFromSource)
 			}
+		}
+
+		err := walkFunc(v)
+		if err == ErrStopWalking {
+			return nil
+		}
+		if err != nil {
+			return err
 		}
 	}
 
