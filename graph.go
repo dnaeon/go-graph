@@ -3,8 +3,10 @@ package graph
 import (
 	"errors"
 	"fmt"
+	"math"
 
 	"gopkg.in/dnaeon/go-deque.v1"
+	"gopkg.in/dnaeon/go-priorityqueue.v1"
 )
 
 // Color represents the color with which a vertex is painted
@@ -178,7 +180,7 @@ func (g *Graph[T]) AddVertex(value T) *Vertex[T] {
 // GetEdge returns the edge connecting the two vertices
 func (g *Graph[T]) GetEdge(from, to T) *Edge[T] {
 	for _, e := range g.edges {
-		if e.From == from && e.To == to {
+		if (e.From == from && e.To == to) || (e.From == to && e.To == from) {
 			return e
 		}
 	}
@@ -190,7 +192,7 @@ func (g *Graph[T]) GetEdge(from, to T) *Edge[T] {
 // vertices exists.
 func (g *Graph[T]) EdgeExists(from, to T) bool {
 	for _, e := range g.edges {
-		if e.From == from && e.To == to {
+		if (e.From == from && e.To == to) || (e.From == to && e.To == from) {
 			return true
 		}
 	}
@@ -379,4 +381,76 @@ func (g *Graph[T]) GetUnreachableVertices(source T) []*Vertex[T] {
 	}
 
 	return result
+}
+
+// Initializes the source vertex as part of Dijkstra's algorithm
+func (g *Graph[T]) initializeSourceVertex(source T) error {
+	if !g.VertexExists(source) {
+		return fmt.Errorf("Source vertex %v not found in graph", source)
+	}
+
+	// Set tentative distance for all vertices
+	g.ResetVertexAttributes()
+	for _, v := range g.vertices {
+		v.DistanceFromSource = math.Inf(1)
+	}
+
+	// Initialize source vertex
+	srcV := g.GetVertex(source)
+	srcV.DistanceFromSource = 0.0
+
+	return nil
+}
+
+// Relaxes the edge as part of Dijkstra's algorithm
+func (g *Graph[T]) relaxEdge(from, to T) error {
+	if !g.EdgeExists(from, to) {
+		return fmt.Errorf("No edge exists between %v and %v", from, to)
+	}
+
+	edge := g.GetEdge(from, to)
+	fromV := g.GetVertex(from)
+	toV := g.GetVertex(to)
+
+	// Compute alt distance and compare against current distance
+	alt := fromV.DistanceFromSource + edge.Weight
+	if alt < toV.DistanceFromSource {
+		toV.DistanceFromSource = alt
+		toV.Parent = fromV
+	}
+
+	return nil
+}
+
+// Dijkstra implements Dijkstra's algorithm for finding the
+// shortest-path from a given source vertex to all other vertices in
+// the graph.
+func (g *Graph[T]) Dijkstra(source T) error {
+	if err := g.initializeSourceVertex(source); err != nil {
+		return err
+	}
+
+	// Enqueue all vertices
+	queue := priorityqueue.New[*Vertex[T], float64](priorityqueue.MinHeap)
+	for _, v := range g.vertices {
+		queue.Put(v, v.DistanceFromSource)
+	}
+
+	for !queue.IsEmpty() {
+		item := queue.Get()
+		v := item.Value
+		// Relax edges connecting V and it's neighbours
+		for _, u := range g.GetNeighbourVertices(v.Value) {
+			oldDist := u.DistanceFromSource
+			if err := g.relaxEdge(v.Value, u.Value); err != nil {
+				return err
+			}
+			// Update the priority, if needed
+			if u.DistanceFromSource != oldDist {
+				queue.Update(u, u.DistanceFromSource)
+			}
+		}
+	}
+
+	return nil
 }
