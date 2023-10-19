@@ -468,3 +468,63 @@ func (g *Graph[T]) WalkDijkstra(source T, walkFunc WalkFunc[T]) error {
 
 	return nil
 }
+
+// WalkShortestPath yields the vertices which represent the shortest
+// path between SOURCE and DEST.
+func (g *Graph[T]) WalkShortestPath(source T, dest T, walkFunc WalkFunc[T]) error {
+	if !g.VertexExists(source) {
+		return fmt.Errorf("Source vertex %v not found in the graph", source)
+	}
+
+	if !g.VertexExists(dest) {
+		return fmt.Errorf("Destination vertex %v not found in the graph", source)
+	}
+
+	walker := func(v *Vertex[T]) error {
+		if v.Value == dest {
+			// Destination reached, stop walking the
+			// graph. Check whether the edge was relaxed
+			// by comparing the current distance from
+			// source.
+			if v.DistanceFromSource != math.Inf(1) {
+				if err := walkFunc(v); err != nil {
+					return err
+				}
+				return ErrStopWalking
+			}
+
+			return fmt.Errorf("No path exists between %v and %v", source, dest)
+		}
+
+		// Yield the visited vertex
+		if err := walkFunc(v); err != nil {
+			return err
+		}
+
+		// We haven't found our destination yet
+		return nil
+	}
+
+	if err := g.WalkDijkstra(source, walker); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ShortestPath returns the list of vertices, which represent the
+// shortest path between a given SOURCE and DEST vertex using
+// Dijkstra's algorithim.
+func (g *Graph[T]) ShortestPath(source T, dest T) ([]*Vertex[T], error) {
+	result := make([]*Vertex[T], 0)
+	walker := func(v *Vertex[T]) error {
+		result = append(result, v)
+		return nil
+	}
+
+	if err := g.WalkShortestPath(source, dest, walker); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
