@@ -427,10 +427,13 @@ func (g *Graph[T]) relaxEdge(from, to T) error {
 // the graph.
 //
 // This method will pass each visited vertex while traversing the
+// shortest path from the source vertex to each other vertex in the
 // graph.
 //
-// In order to stop traversing the graph when a certain destination is
-// reached callers of this method should return ErrStopWalking.
+// Note, that this method only constructs the shortest-path tree and
+// yields each visited vertex. In order to stop walking the graph
+// callers of this method should return ErrStopWalking error and refer
+// to the shortest-path tree, or use the WalkShortestPath method.
 func (g *Graph[T]) WalkDijkstra(source T, walkFunc WalkFunc[T]) error {
 	if err := g.initializeSourceVertex(source); err != nil {
 		return err
@@ -489,33 +492,46 @@ func (g *Graph[T]) WalkShortestPath(source T, dest T, walkFunc WalkFunc[T]) erro
 		return fmt.Errorf("Destination vertex %v not found in the graph", source)
 	}
 
+	// A walker which stops walking the graph, as soon as we reach
+	// the destination vertex
 	walker := func(v *Vertex[T]) error {
 		if v.Value == dest {
-			// Destination reached, stop walking the
-			// graph. Check whether the edge was relaxed
-			// by comparing the current distance from
-			// source.
-			if v.DistanceFromSource != math.Inf(1) {
-				if err := walkFunc(v); err != nil {
-					return err
-				}
-				return ErrStopWalking
-			}
-
-			return fmt.Errorf("No path exists between %v and %v", source, dest)
+			return ErrStopWalking
 		}
-
-		// Yield the visited vertex
-		if err := walkFunc(v); err != nil {
-			return err
-		}
-
-		// We haven't found our destination yet
 		return nil
 	}
 
 	if err := g.WalkDijkstra(source, walker); err != nil {
 		return err
+	}
+
+	// Make our way from the destination vertex back to the source
+	// by following the relationships established by the
+	// shortest-path tree.
+	destV := g.GetVertex(dest)
+	result := make([]*Vertex[T], 0)
+	v := destV
+	for {
+		result = append(result, v)
+		if v.Value == source {
+			break
+		}
+
+		if v.Parent == nil {
+			return fmt.Errorf("No path exists between %v and %v", source, dest)
+		}
+		v = v.Parent
+	}
+
+	Reverse(result)
+	for _, v := range result {
+		err := walkFunc(v)
+		if err == ErrStopWalking {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
