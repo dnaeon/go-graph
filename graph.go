@@ -469,6 +469,15 @@ func (g *Graph[T]) WalkDijkstra(source T, walkFunc WalkFunc[T]) error {
 	return nil
 }
 
+// Reverses the given slice of items
+func Reverse[T any](items []T) {
+	size := len(items)
+	for i := 0; i < size/2; i++ {
+		k := size - i - 1
+		items[i], items[k] = items[k], items[i]
+	}
+}
+
 // WalkShortestPath yields the vertices which represent the shortest
 // path between SOURCE and DEST.
 func (g *Graph[T]) WalkShortestPath(source T, dest T, walkFunc WalkFunc[T]) error {
