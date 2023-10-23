@@ -23,6 +23,10 @@ const (
 	Black
 )
 
+// DotAttributes contains the map of key/value pairs, which can be
+// associated with vertices and edges.
+type DotAttributes map[string]string
+
 // Vertex represents a vertex in the graph
 type Vertex[T comparable] struct {
 	// Value contains the value for the vertex
@@ -42,6 +46,11 @@ type Vertex[T comparable] struct {
 	// or shortest-path tree, depending on how we walked the
 	// graph.
 	Parent *Vertex[T]
+
+	// DotAttributes represents the list of attributes associated
+	// with the vertex. The attributes will be used when
+	// generating the Dot representation of the graph.
+	DotAttributes DotAttributes
 }
 
 // NewVertex creates a new vertex with the given value
@@ -51,6 +60,7 @@ func NewVertex[T comparable](value T) *Vertex[T] {
 		Color:              White,
 		DistanceFromSource: 0.0,
 		Parent:             nil,
+		DotAttributes:      make(DotAttributes),
 	}
 
 	return v
@@ -66,14 +76,20 @@ type Edge[T comparable] struct {
 
 	// Weight represents the edge weight
 	Weight float64
+
+	// DotAttributes represents the list of attributes associated
+	// with the edge. The attributes will be used when
+	// generating the Dot representation of the graph.
+	DotAttributes DotAttributes
 }
 
 // NewEdge creates an edge, which connects the given vertices
 func NewEdge[T comparable](from, to T) *Edge[T] {
 	e := &Edge[T]{
-		From:   from,
-		To:     to,
-		Weight: 0.0,
+		From:          from,
+		To:            to,
+		Weight:        0.0,
+		DotAttributes: make(DotAttributes),
 	}
 
 	return e
