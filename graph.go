@@ -711,7 +711,13 @@ func formatDotAttributes(items DotAttributes) string {
 
 // WriteDot generates the Dot representation of the graph
 func (g *UndirectedGraph[T]) WriteDot(w io.Writer) error {
-	if _, err := fmt.Fprintln(w, "strict graph {"); err != nil {
+	var graphKind string
+	if g.kind == Undirected {
+		graphKind = "graph"
+	} else {
+		graphKind = "digraph"
+	}
+	if _, err := fmt.Fprintf(w, "strict %s {\n", graphKind); err != nil {
 		return err
 	}
 
