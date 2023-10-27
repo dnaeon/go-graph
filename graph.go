@@ -3,7 +3,10 @@ package graph
 import (
 	"errors"
 	"fmt"
+	"io"
 	"math"
+	"strconv"
+	"strings"
 
 	"gopkg.in/dnaeon/go-deque.v1"
 	"gopkg.in/dnaeon/go-priorityqueue.v1"
@@ -106,8 +109,93 @@ func NewEdge[T comparable](from, to T) *Edge[T] {
 	return e
 }
 
-// Graph represents an undirected graph
-type Graph[T comparable] struct {
+// WalkFunc is a function which receives a vertex while traversing the
+// graph
+type WalkFunc[T comparable] func(v *Vertex[T]) error
+
+// ErrStopWalking is returned by WalkFunc to signal that further
+// walking of the graph should be stopped.
+var ErrStopWalking = errors.New("walking stopped")
+
+// Graph represents a graph which establishes relationships between
+// various objects.
+type Graph[T comparable] interface {
+	// Kind returns the kind of the graph
+	Kind() GraphKind
+
+	// AddVertex adds a new vertex to the graph
+	AddVertex(v T) *Vertex[T]
+
+	// GetVertex returns the vertex associated with the given value
+	GetVertex(v T) *Vertex[T]
+
+	// VertexExists is a predicate for testing whether a vertex
+	// associated with the value exists.
+	VertexExists(v T) bool
+
+	// GetVertices returns all vertices in the graph
+	GetVertices() []*Vertex[T]
+
+	// GetVertexValues returns the values associated with all
+	// vertices from the graph
+	GetVertexValues() []T
+
+	// AddEdge creates a new edge connecting `from` and `to`
+	// vertices
+	AddEdge(from, to T) *Edge[T]
+
+	// AddWeightedEdge creates a new edge with the given weight
+	AddWeightedEdge(from, to T, weight float64) *Edge[T]
+
+	// GetEdge returns the edge, which connects `from` and `to`
+	// vertices
+	GetEdge(from, to T) *Edge[T]
+
+	// EdgeExists is a predicate for testing whether an edge
+	// between `from` and `to` exists
+	EdgeExists(from, to T) bool
+
+	// GetEdges returns all edges from the graph
+	GetEdges() []*Edge[T]
+
+	// GetNeighbours returns the neighbours of V as values
+	GetNeighbours(v T) []T
+
+	// GetNeighbourVertices returns the neighbours of V as
+	// vertices
+	GetNeighbourVertices(v T) []*Vertex[T]
+
+	// GetUnreachableVertices returns the vertices, which are
+	// unreachable from the given source vertex.
+	GetUnreachableVertices(source T) []*Vertex[T]
+
+	// WalkDFS performs a Depth-first Search (DFS) traversal of
+	// the graph, starting from the given source vertex
+	WalkDFS(source T, walkFunc WalkFunc[T]) error
+
+	// WalkBFS performs a Breadth-first Search (DFS) traversal of
+	// the graph, starting from the given source vertex
+	WalkBFS(source T, walkFunc WalkFunc[T]) error
+
+	// WalkShortestPath walks over the shortest path, which
+	// connects the given source and destination vertices.
+	WalkShortestPath(source T, dest T, walkFunc WalkFunc[T]) error
+
+	// WalkUnreachableVertices walks over the vertices, which are
+	// unreachable from the given source vertex
+	WalkUnreachableVertices(source T, walkFunc WalkFunc[T]) error
+
+	// ShortestPath returns the list of vertices, which form the
+	// shortest path connecting the given source and destination
+	// vertices.
+	ShortestPath(source T, dest T) ([]*Vertex[T], error)
+
+	// WriteDot formats the graph in Dot representation
+	WriteDot(w io.Writer) error
+}
+
+// UndirectedGraph represents an undirected graph
+type UndirectedGraph[T comparable] struct {
 	// The set of vertices in the graph
 	vertices map[T]*Vertex[T]
 
@@ -116,22 +204,31 @@ type Graph[T comparable] struct {
 
 	// The adjacency lists for our vertices
 	adjacencyLists map[T][]T
+
+	// The kind of the graph
+	kind GraphKind
 }
 
 // NewGraph creates a new graph
-func NewGraph[T comparable]() *Graph[T] {
-	g := &Graph[T]{
+func New[T comparable](kind GraphKind) Graph[T] {
+	g := &UndirectedGraph[T]{
 		vertices:       make(map[T]*Vertex[T]),
 		edges:          make([]*Edge[T], 0),
 		adjacencyLists: make(map[T][]T),
+		kind:           kind,
 	}
 
 	return g
 }
 
+// Kind returns the kind of the graph
+func (g *UndirectedGraph[T]) Kind() GraphKind {
+	return g.kind
+}
+
 // ResetVertexAttributes resets the attributes for each vertex in the
 // graph
-func (g *Graph[T]) ResetVertexAttributes() {
+func (g *UndirectedGraph[T]) ResetVertexAttributes() {
 	for _, v := range g.vertices {
 		v.Color = White
 		v.DistanceFromSource = 0.0
@@ -140,19 +237,19 @@ func (g *Graph[T]) ResetVertexAttributes() {
 }
 
 // GetVertex returns the vertex associated with the given value
-func (g *Graph[T]) GetVertex(value T) *Vertex[T] {
+func (g *UndirectedGraph[T]) GetVertex(value T) *Vertex[T] {
 	return g.vertices[value]
 }
 
 // VertexExists returns a boolean indicating whether a vertex with the
 // given value exists
-func (g *Graph[T]) VertexExists(value T) bool {
+func (g *UndirectedGraph[T]) VertexExists(value T) bool {
 	_, exists := g.vertices[value]
 	return exists
 }
 
 // GetVertices returns the set of vertices in the graph
-func (g *Graph[T]) GetVertices() []*Vertex[T] {
+func (g *UndirectedGraph[T]) GetVertices() []*Vertex[T] {
 	result := make([]*Vertex[T], 0)
 	for _, v := range g.vertices {
 		result = append(result, v)
@@ -162,7 +259,7 @@ func (g *Graph[T]) GetVertices() []*Vertex[T] {
 }
 
 // GetVertexValues returns the set of vertex values
-func (g *Graph[T]) GetVertexValues() []T {
+func (g *UndirectedGraph[T]) GetVertexValues() []T {
 	result := make([]T, 0)
 	for k := range g.vertices {
 		result = append(result, k)
@@ -172,17 +269,17 @@ func (g *Graph[T]) GetVertexValues() []T {
 }
 
 // GetEdges returns the set of edges in the graph
-func (g *Graph[T]) GetEdges() []*Edge[T] {
+func (g *UndirectedGraph[T]) GetEdges() []*Edge[T] {
 	return g.edges
 }
 
 // GetNeighbours returns the list of direct neighbours of V
-func (g *Graph[T]) GetNeighbours(v T) []T {
+func (g *UndirectedGraph[T]) GetNeighbours(v T) []T {
 	return g.adjacencyLists[v]
 }
 
 // GetNeighbourVertices returns the list of neighbour vertices of V
-func (g *Graph[T]) GetNeighbourVertices(v T) []*Vertex[T] {
+func (g *UndirectedGraph[T]) GetNeighbourVertices(v T) []*Vertex[T] {
 	neighbours := g.GetNeighbours(v)
 	result := make([]*Vertex[T], 0)
 	for _, u := range neighbours {
@@ -193,7 +290,7 @@ func (g *Graph[T]) GetNeighbourVertices(v T) []*Vertex[T] {
 }
 
 // AddVertex adds a vertex to the graph
-func (g *Graph[T]) AddVertex(value T) *Vertex[T] {
+func (g *UndirectedGraph[T]) AddVertex(value T) *Vertex[T] {
 	if g.VertexExists(value) {
 		return g.GetVertex(value)
 	}
@@ -205,7 +302,7 @@ func (g *Graph[T]) AddVertex(value T) *Vertex[T] {
 }
 
 // GetEdge returns the edge connecting the two vertices
-func (g *Graph[T]) GetEdge(from, to T) *Edge[T] {
+func (g *UndirectedGraph[T]) GetEdge(from, to T) *Edge[T] {
 	for _, e := range g.edges {
 		if (e.From == from && e.To == to) || (e.From == to && e.To == from) {
 			return e
@@ -217,7 +314,7 @@ func (g *Graph[T]) GetEdge(from, to T) *Edge[T] {
 
 // EdgeExists returns a boolean indicating whether an edge between two
 // vertices exists.
-func (g *Graph[T]) EdgeExists(from, to T) bool {
+func (g *UndirectedGraph[T]) EdgeExists(from, to T) bool {
 	e := g.GetEdge(from, to)
 	if e != nil {
 		return true
@@ -227,7 +324,7 @@ func (g *Graph[T]) EdgeExists(from, to T) bool {
 }
 
 // AddEdge adds an edge between two vertices in the graph
-func (g *Graph[T]) AddEdge(from, to T) *Edge[T] {
+func (g *UndirectedGraph[T]) AddEdge(from, to T) *Edge[T] {
 	if g.EdgeExists(from, to) {
 		return g.GetEdge(from, to)
 	}
@@ -248,24 +345,16 @@ func (g *Graph[T]) AddEdge(from, to T) *Edge[T] {
 
 // AddWeightedEdge adds an edge between two vertices and sets weight
 // for the edge
-func (g *Graph[T]) AddWeightedEdge(from, to T, weight float64) *Edge[T] {
+func (g *UndirectedGraph[T]) AddWeightedEdge(from, to T, weight float64) *Edge[T] {
 	e := g.AddEdge(from, to)
 	e.Weight = weight
 
 	return e
 }
 
-// WalkFunc is a function which receives a vertex while traversing the
-// graph
-type WalkFunc[T comparable] func(v *Vertex[T]) error
-
-// ErrStopWalking is returned by WalkFunc to signal that further
-// walking of the graph should be stopped.
-var ErrStopWalking = errors.New("walking stopped")
-
 // WalkDFS performs Depth-first Search (DFS) traversal of the graph,
 // starting from the given source vertex.
-func (g *Graph[T]) WalkDFS(source T, walkFunc WalkFunc[T]) error {
+func (g *UndirectedGraph[T]) WalkDFS(source T, walkFunc WalkFunc[T]) error {
 	if !g.VertexExists(source) {
 		return fmt.Errorf("Source vertex %v not found in the graph", source)
 	}
@@ -315,7 +404,7 @@ func (g *Graph[T]) WalkDFS(source T, walkFunc WalkFunc[T]) error {
 
 // WalkBFS performs Breadth-first Search (BFS) traversal of the graph,
 // starting from the given source vertex.
-func (g *Graph[T]) WalkBFS(source T, walkFunc WalkFunc[T]) error {
+func (g *UndirectedGraph[T]) WalkBFS(source T, walkFunc WalkFunc[T]) error {
 	if !g.VertexExists(source) {
 		return fmt.Errorf("Source vertex %v not found in the graph", source)
 	}
@@ -365,7 +454,7 @@ func (g *Graph[T]) WalkBFS(source T, walkFunc WalkFunc[T]) error {
 
 // WalkUnreachableVertices walks over the vertices which are
 // unreachable from the given source vertex
-func (g *Graph[T]) WalkUnreachableVertices(source T, walkFunc WalkFunc[T]) error {
+func (g *UndirectedGraph[T]) WalkUnreachableVertices(source T, walkFunc WalkFunc[T]) error {
 	// In order to find all unreachable vertices we will first DFS
 	// traverse the graph.  The vertices which remain White after
 	// we've walked the graph are unreachable from the source
@@ -395,7 +484,7 @@ func (g *Graph[T]) WalkUnreachableVertices(source T, walkFunc WalkFunc[T]) error
 
 // GetUnreachableVertices returns the list of vertices, which are
 // unreachable from a given source vertex
-func (g *Graph[T]) GetUnreachableVertices(source T) []*Vertex[T] {
+func (g *UndirectedGraph[T]) GetUnreachableVertices(source T) []*Vertex[T] {
 	result := make([]*Vertex[T], 0)
 	walkFunc := func(v *Vertex[T]) error {
 		result = append(result, v)
@@ -410,7 +499,7 @@ func (g *Graph[T]) GetUnreachableVertices(source T) []*Vertex[T] {
 }
 
 // Initializes the source vertex as part of Dijkstra's algorithm
-func (g *Graph[T]) initializeSourceVertex(source T) error {
+func (g *UndirectedGraph[T]) initializeSourceVertex(source T) error {
 	if !g.VertexExists(source) {
 		return fmt.Errorf("Source vertex %v not found in graph", source)
 	}
@@ -429,7 +518,7 @@ func (g *Graph[T]) initializeSourceVertex(source T) error {
 }
 
 // Relaxes the edge as part of Dijkstra's algorithm
-func (g *Graph[T]) relaxEdge(from, to T) error {
+func (g *UndirectedGraph[T]) relaxEdge(from, to T) error {
 	if !g.EdgeExists(from, to) {
 		return fmt.Errorf("No edge exists between %v and %v", from, to)
 	}
@@ -460,7 +549,7 @@ func (g *Graph[T]) relaxEdge(from, to T) error {
 // yields each visited vertex. In order to stop walking the graph
 // callers of this method should return ErrStopWalking error and refer
 // to the shortest-path tree, or use the WalkShortestPath method.
-func (g *Graph[T]) WalkDijkstra(source T, walkFunc WalkFunc[T]) error {
+func (g *UndirectedGraph[T]) WalkDijkstra(source T, walkFunc WalkFunc[T]) error {
 	if err := g.initializeSourceVertex(source); err != nil {
 		return err
 	}
@@ -509,7 +598,7 @@ func Reverse[T any](items []T) {
 
 // WalkShortestPath yields the vertices which represent the shortest
 // path between SOURCE and DEST.
-func (g *Graph[T]) WalkShortestPath(source T, dest T, walkFunc WalkFunc[T]) error {
+func (g *UndirectedGraph[T]) WalkShortestPath(source T, dest T, walkFunc WalkFunc[T]) error {
 	if !g.VertexExists(source) {
 		return fmt.Errorf("Source vertex %v not found in the graph", source)
 	}
@@ -566,7 +655,7 @@ func (g *Graph[T]) WalkShortestPath(source T, dest T, walkFunc WalkFunc[T]) erro
 // ShortestPath returns the list of vertices, which represent the
 // shortest path between a given SOURCE and DEST vertex using
 // Dijkstra's algorithim.
-func (g *Graph[T]) ShortestPath(source T, dest T) ([]*Vertex[T], error) {
+func (g *UndirectedGraph[T]) ShortestPath(source T, dest T) ([]*Vertex[T], error) {
 	result := make([]*Vertex[T], 0)
 	walker := func(v *Vertex[T]) error {
 		result = append(result, v)
@@ -578,4 +667,93 @@ func (g *Graph[T]) ShortestPath(source T, dest T) ([]*Vertex[T], error) {
 	}
 
 	return result, nil
+}
+
+// DefaultNodeAttributes represents the map of default attributes to
+// be applied for al nodes when representing the graph in Dot format.
+var DotDefaultNodeAttributes = DotAttributes{
+	"color":     "lightblue",
+	"fillcolor": "lightblue",
+	"fontcolor": "black",
+	"shape":     "record",
+	"style":     "filled, rounded",
+}
+
+// DotDefaultEdgeAttributes represents the map of default attributes
+// to be applied for all edges when representing the graph in Dot
+// format.
+var DotDefaultEdgeAttributes = DotAttributes{
+	"color": "black",
+}
+
+// dotId returns the unique node id, which is used when generating the
+// graph representation in Dot.
+func dotId(v any) int64 {
+	addr := fmt.Sprintf("%p", v)
+	id, err := strconv.ParseInt(addr[2:], 16, 64)
+	if err != nil {
+		panic(err)
+	}
+
+	return id
+}
+
+// formatDotAttributes formats the given map of attributes in Dot
+// format
+func formatDotAttributes(items DotAttributes) string {
+	attrs := ""
+	for k, v := range items {
+		attrs += fmt.Sprintf("%s=%q ", k, v)
+	}
+
+	return strings.TrimRight(attrs, " ")
+}
+
+// WriteDot generates the Dot representation of the graph
+func (g *UndirectedGraph[T]) WriteDot(w io.Writer) error {
+	if _, err := fmt.Fprintln(w, "strict graph {"); err != nil {
+		return err
+	}
+
+	// Default node attributes
+	if _, err := fmt.Fprintf(w, "\tnode [%s]\n", formatDotAttributes(DotDefaultNodeAttributes)); err != nil {
+		return err
+	}
+
+	// Default edge attributes
+	if _, err := fmt.Fprintf(w, "\tedge [%s]\n", formatDotAttributes(DotDefaultEdgeAttributes)); err != nil {
+		return err
+	}
+
+	for _, v := range g.vertices {
+		// Do we have a label?
+		_, ok := v.DotAttributes["label"]
+		if !ok {
+			v.DotAttributes["label"] = fmt.Sprintf("%v", v.Value)
+		}
+
+		_, err := fmt.Fprintf(w, "\t%d [%s]\n", dotId(v), formatDotAttributes(v.DotAttributes))
+		if err != nil {
+			return err
+		}
+
+		for _, u := range g.GetNeighbourVertices(v.Value) {
+			e := g.GetEdge(u.Value, v.Value)
+			var edgeArrow string
+			if g.kind == Undirected {
+				edgeArrow = "--"
+			} else {
+				edgeArrow = "->"
+			}
+
+			if _, err := fmt.Fprintf(w, "\t%d %s %d [%s]\n", dotId(v), edgeArrow, dotId(u), formatDotAttributes(e.DotAttributes)); err != nil {
+				return err
+			}
+		}
+	}
+
+	if _, err := fmt.Fprintln(w, "}"); err != nil {
+		return err
+	}
+	return nil
 }
