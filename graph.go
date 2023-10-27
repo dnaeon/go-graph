@@ -218,10 +218,9 @@ func (g *Graph[T]) GetEdge(from, to T) *Edge[T] {
 // EdgeExists returns a boolean indicating whether an edge between two
 // vertices exists.
 func (g *Graph[T]) EdgeExists(from, to T) bool {
-	for _, e := range g.edges {
-		if (e.From == from && e.To == to) || (e.From == to && e.To == from) {
-			return true
-		}
+	e := g.GetEdge(from, to)
+	if e != nil {
+		return true
 	}
 
 	return false
