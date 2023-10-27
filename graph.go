@@ -31,10 +31,10 @@ type GraphKind int
 
 const (
 	// A kind which represents a directed graph
-	Directed GraphKind = iota
+	KindDirected GraphKind = iota
 
 	// A kind which represents an undirected graph
-	Undirected
+	KindUndirected
 )
 
 // DotAttributes contains the map of key/value pairs, which can be
@@ -211,14 +211,20 @@ type UndirectedGraph[T comparable] struct {
 
 // NewGraph creates a new graph
 func New[T comparable](kind GraphKind) Graph[T] {
-	g := &UndirectedGraph[T]{
+	g := UndirectedGraph[T]{
 		vertices:       make(map[T]*Vertex[T]),
 		edges:          make([]*Edge[T], 0),
 		adjacencyLists: make(map[T][]T),
 		kind:           kind,
 	}
 
-	return g
+	if kind == KindDirected {
+		return &DirectedGraph[T]{
+			UndirectedGraph: g,
+		}
+	}
+
+	return &g
 }
 
 // Kind returns the kind of the graph
@@ -712,7 +718,7 @@ func formatDotAttributes(items DotAttributes) string {
 // WriteDot generates the Dot representation of the graph
 func (g *UndirectedGraph[T]) WriteDot(w io.Writer) error {
 	var graphKind string
-	if g.kind == Undirected {
+	if g.kind == KindUndirected {
 		graphKind = "graph"
 	} else {
 		graphKind = "digraph"
@@ -746,7 +752,7 @@ func (g *UndirectedGraph[T]) WriteDot(w io.Writer) error {
 		for _, u := range g.GetNeighbourVertices(v.Value) {
 			e := g.GetEdge(u.Value, v.Value)
 			var edgeArrow string
-			if g.kind == Undirected {
+			if g.kind == KindUndirected {
 				edgeArrow = "--"
 			} else {
 				edgeArrow = "->"
@@ -761,5 +767,40 @@ func (g *UndirectedGraph[T]) WriteDot(w io.Writer) error {
 	if _, err := fmt.Fprintln(w, "}"); err != nil {
 		return err
 	}
+	return nil
+}
+
+// DirectedGraph represents a directed graph
+type DirectedGraph[T comparable] struct {
+	UndirectedGraph[T]
+}
+
+// AddEdge adds an edge between two vertices in the graph
+func (g *DirectedGraph[T]) AddEdge(from, to T) *Edge[T] {
+	if g.EdgeExists(from, to) {
+		return g.GetEdge(from, to)
+	}
+
+	g.AddVertex(from)
+	g.AddVertex(to)
+
+	// Create the edge
+	e := NewEdge(from, to)
+	g.edges = append(g.edges, e)
+
+	// Update the adjacency lists
+	g.adjacencyLists[from] = append(g.adjacencyLists[from], to)
+
+	return e
+}
+
+// GetEdge returns the edge connecting the two vertices
+func (g *DirectedGraph[T]) GetEdge(from, to T) *Edge[T] {
+	for _, e := range g.edges {
+		if e.From == from && e.To == to {
+			return e
+		}
+	}
+
 	return nil
 }
