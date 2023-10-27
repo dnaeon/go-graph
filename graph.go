@@ -23,6 +23,17 @@ const (
 	Black
 )
 
+// GraphKind represents the kind of the graph
+type GraphKind int
+
+const (
+	// A kind which represents a directed graph
+	Directed GraphKind = iota
+
+	// A kind which represents an undirected graph
+	Undirected
+)
+
 // DotAttributes contains the map of key/value pairs, which can be
 // associated with vertices and edges.
 type DotAttributes map[string]string
