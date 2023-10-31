@@ -217,11 +217,6 @@ type Graph[T comparable] interface {
 	// unreachable from the given source vertex
 	WalkUnreachableVertices(source T, walkFunc WalkFunc[T]) error
 
-	// ShortestPath returns the list of vertices, which form the
-	// shortest path connecting the given source and destination
-	// vertices.
-	ShortestPath(source T, dest T) ([]*Vertex[T], error)
-
 	// WriteDot formats the graph in Dot representation
 	WriteDot(w io.Writer) error
 
@@ -693,18 +688,6 @@ func (g *UndirectedGraph[T]) WalkShortestPath(source T, dest T, walkFunc WalkFun
 	}
 
 	return nil
-}
-
-// ShortestPath returns the list of vertices, which represent the
-// shortest path between a given SOURCE and DEST vertex using
-// Dijkstra's algorithim.
-func (g *UndirectedGraph[T]) ShortestPath(source T, dest T) ([]*Vertex[T], error) {
-	collector := g.NewCollector()
-	if err := g.WalkShortestPath(source, dest, collector.WalkFunc); err != nil {
-		return nil, err
-	}
-
-	return collector.Get(), nil
 }
 
 // DefaultNodeAttributes represents the map of default attributes to
