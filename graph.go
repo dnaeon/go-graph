@@ -117,6 +117,38 @@ type WalkFunc[T comparable] func(v *Vertex[T]) error
 // walking of the graph should be stopped.
 var ErrStopWalking = errors.New("walking stopped")
 
+// Collector provides an easy way to collect vertices while walking a
+// graph
+type Collector[T comparable] struct {
+	items []*Vertex[T]
+}
+
+// NewCollector creates a new collector
+func NewCollector[T comparable]() *Collector[T] {
+	c := &Collector[T]{
+		items: make([]*Vertex[T], 0),
+	}
+
+	return c
+}
+
+// WalkFunc collects the vertices it visits
+func (c *Collector[T]) WalkFunc(v *Vertex[T]) error {
+	c.items = append(c.items, v)
+
+	return nil
+}
+
+// Get returns the collected vertices
+func (c *Collector[T]) Get() []*Vertex[T] {
+	return c.items
+}
+
+// Reset resets the set of collected vertices
+func (c *Collector[T]) Reset() {
+	c.items = make([]*Vertex[T], 0)
+}
+
 // Graph represents a graph which establishes relationships between
 // various objects.
 type Graph[T comparable] interface {
@@ -192,6 +224,9 @@ type Graph[T comparable] interface {
 
 	// WriteDot formats the graph in Dot representation
 	WriteDot(w io.Writer) error
+
+	// NewCollector creates and returns a new collector
+	NewCollector() *Collector[T]
 }
 
 // UndirectedGraph represents an undirected graph
@@ -225,6 +260,13 @@ func New[T comparable](kind GraphKind) Graph[T] {
 	}
 
 	return &g
+}
+
+// NewCollector creates a new collector
+func (g *UndirectedGraph[T]) NewCollector() *Collector[T] {
+	c := NewCollector[T]()
+
+	return c
 }
 
 // Kind returns the kind of the graph
@@ -491,17 +533,12 @@ func (g *UndirectedGraph[T]) WalkUnreachableVertices(source T, walkFunc WalkFunc
 // GetUnreachableVertices returns the list of vertices, which are
 // unreachable from a given source vertex
 func (g *UndirectedGraph[T]) GetUnreachableVertices(source T) []*Vertex[T] {
-	result := make([]*Vertex[T], 0)
-	walkFunc := func(v *Vertex[T]) error {
-		result = append(result, v)
+	collector := g.NewCollector()
+	if err := g.WalkUnreachableVertices(source, collector.WalkFunc); err != nil {
 		return nil
 	}
 
-	if err := g.WalkUnreachableVertices(source, walkFunc); err != nil {
-		return nil
-	}
-
-	return result
+	return collector.Get()
 }
 
 // Initializes the source vertex as part of Dijkstra's algorithm
@@ -662,17 +699,12 @@ func (g *UndirectedGraph[T]) WalkShortestPath(source T, dest T, walkFunc WalkFun
 // shortest path between a given SOURCE and DEST vertex using
 // Dijkstra's algorithim.
 func (g *UndirectedGraph[T]) ShortestPath(source T, dest T) ([]*Vertex[T], error) {
-	result := make([]*Vertex[T], 0)
-	walker := func(v *Vertex[T]) error {
-		result = append(result, v)
-		return nil
-	}
-
-	if err := g.WalkShortestPath(source, dest, walker); err != nil {
+	collector := g.NewCollector()
+	if err := g.WalkShortestPath(source, dest, collector.WalkFunc); err != nil {
 		return nil, err
 	}
 
-	return result, nil
+	return collector.Get(), nil
 }
 
 // DefaultNodeAttributes represents the map of default attributes to
