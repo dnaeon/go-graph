@@ -41,6 +41,16 @@ const (
 // associated with vertices and edges.
 type DotAttributes map[string]string
 
+// Degree represents the number of incoming and outgoing edges of a
+// vertex
+type Degree struct {
+	// The number of incoming edges
+	In int
+
+	// The number of outgoing edges
+	Out int
+}
+
 // Vertex represents a vertex in the graph
 type Vertex[T comparable] struct {
 	// Value contains the value for the vertex
@@ -65,6 +75,9 @@ type Vertex[T comparable] struct {
 	// with the vertex. The attributes will be used when
 	// generating the Dot representation of the graph.
 	DotAttributes DotAttributes
+
+	// Degree represents the degree of the vertex
+	Degree Degree
 }
 
 // NewVertex creates a new vertex with the given value
@@ -75,6 +88,7 @@ func NewVertex[T comparable](value T) *Vertex[T] {
 		DistanceFromSource: 0.0,
 		Parent:             nil,
 		DotAttributes:      make(DotAttributes),
+		Degree:             Degree{In: 0, Out: 0},
 	}
 
 	return v
@@ -368,8 +382,8 @@ func (g *UndirectedGraph[T]) AddEdge(from, to T) *Edge[T] {
 		return g.GetEdge(from, to)
 	}
 
-	g.AddVertex(from)
-	g.AddVertex(to)
+	fromV := g.AddVertex(from)
+	toV := g.AddVertex(to)
 
 	// Create the edge
 	e := NewEdge(from, to)
@@ -378,6 +392,12 @@ func (g *UndirectedGraph[T]) AddEdge(from, to T) *Edge[T] {
 	// Update the adjacency lists
 	g.adjacencyLists[from] = append(g.adjacencyLists[from], to)
 	g.adjacencyLists[to] = append(g.adjacencyLists[to], from)
+
+	// Update the vertices degree
+	fromV.Degree.In += 1
+	fromV.Degree.Out += 1
+	toV.Degree.In += 1
+	toV.Degree.Out += 1
 
 	return e
 }
@@ -781,8 +801,8 @@ func (g *DirectedGraph[T]) AddEdge(from, to T) *Edge[T] {
 		return g.GetEdge(from, to)
 	}
 
-	g.AddVertex(from)
-	g.AddVertex(to)
+	fromV := g.AddVertex(from)
+	toV := g.AddVertex(to)
 
 	// Create the edge
 	e := NewEdge(from, to)
@@ -790,6 +810,10 @@ func (g *DirectedGraph[T]) AddEdge(from, to T) *Edge[T] {
 
 	// Update the adjacency lists
 	g.adjacencyLists[from] = append(g.adjacencyLists[from], to)
+
+	// Update vertices degree
+	fromV.Degree.Out += 1
+	toV.Degree.In += 1
 
 	return e
 }
