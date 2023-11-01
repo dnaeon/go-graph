@@ -197,10 +197,6 @@ type Graph[T comparable] interface {
 	// vertices
 	GetNeighbourVertices(v T) []*Vertex[T]
 
-	// GetUnreachableVertices returns the vertices, which are
-	// unreachable from the given source vertex.
-	GetUnreachableVertices(source T) []*Vertex[T]
-
 	// WalkDFS performs a Depth-first Search (DFS) traversal of
 	// the graph, starting from the given source vertex
 	WalkDFS(source T, walkFunc WalkFunc[T]) error
@@ -523,17 +519,6 @@ func (g *UndirectedGraph[T]) WalkUnreachableVertices(source T, walkFunc WalkFunc
 	}
 
 	return nil
-}
-
-// GetUnreachableVertices returns the list of vertices, which are
-// unreachable from a given source vertex
-func (g *UndirectedGraph[T]) GetUnreachableVertices(source T) []*Vertex[T] {
-	collector := g.NewCollector()
-	if err := g.WalkUnreachableVertices(source, collector.WalkFunc); err != nil {
-		return nil
-	}
-
-	return collector.Get()
 }
 
 // Initializes the source vertex as part of Dijkstra's algorithm
