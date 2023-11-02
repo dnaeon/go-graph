@@ -240,6 +240,9 @@ type Graph[T comparable] interface {
 
 	// NewCollector creates and returns a new collector
 	NewCollector() *Collector[T]
+
+	// Clone creates a new copy of the graph
+	Clone() Graph[T]
 }
 
 // UndirectedGraph represents an undirected graph
@@ -273,6 +276,80 @@ func New[T comparable](kind GraphKind) Graph[T] {
 	}
 
 	return &g
+}
+
+// Clone creates a new copy of the graph.
+func (g *UndirectedGraph[T]) Clone() Graph[T] {
+	newVertices := make(map[T]*Vertex[T])
+	newEdges := make([]*Edge[T], 0)
+	newAdjacencyLists := make(map[T][]T)
+
+	// Clone vertices
+	for k, v := range g.vertices {
+		dotAttributes := make(DotAttributes)
+		for dotK, dotV := range v.DotAttributes {
+			dotAttributes[dotK] = dotV
+		}
+
+		newV := &Vertex[T]{
+			Value:              v.Value,
+			Color:              v.Color,
+			DistanceFromSource: v.DistanceFromSource,
+			Parent:             nil, // Parent will be populated a bit later
+			DotAttributes:      dotAttributes,
+			Degree:             Degree{In: v.Degree.In, Out: v.Degree.Out},
+		}
+		newVertices[k] = newV
+	}
+
+	// Populate parent field, now that we have all vertices created
+	for k, v := range g.vertices {
+		if v.Parent == nil {
+			continue
+		}
+		newParent := newVertices[v.Parent.Value]
+		newVertices[k].Parent = newParent
+	}
+
+	// Clone edges
+	for _, e := range g.edges {
+		dotAttributes := make(DotAttributes)
+		for dotK, dotV := range e.DotAttributes {
+			dotAttributes[dotK] = dotV
+		}
+		newE := &Edge[T]{
+			From:          e.From,
+			To:            e.To,
+			Weight:        e.Weight,
+			DotAttributes: dotAttributes,
+		}
+		newEdges = append(newEdges, newE)
+	}
+
+	// Clone adjacency lists
+	for v, adjList := range g.adjacencyLists {
+		newAdjList := make([]T, 0)
+		for _, u := range adjList {
+			newAdjList = append(newAdjList, u)
+		}
+		newAdjacencyLists[v] = newAdjList
+	}
+
+	// Create the new graph
+	g1 := UndirectedGraph[T]{
+		vertices:       newVertices,
+		edges:          newEdges,
+		adjacencyLists: newAdjacencyLists,
+		kind:           g.kind,
+	}
+
+	if g.kind == KindDirected {
+		return &DirectedGraph[T]{
+			UndirectedGraph: g1,
+		}
+	}
+
+	return &g1
 }
 
 // NewCollector creates a new collector
