@@ -632,7 +632,7 @@ func (g *UndirectedGraph[T]) relaxEdge(from, to T) error {
 	return nil
 }
 
-// WalkDijkstra implements Dijkstra's algorithm for finding the
+// walkDijkstra implements Dijkstra's algorithm for finding the
 // shortest-path from a given source vertex to all other vertices in
 // the graph.
 //
@@ -644,7 +644,7 @@ func (g *UndirectedGraph[T]) relaxEdge(from, to T) error {
 // yields each visited vertex. In order to stop walking the graph
 // callers of this method should return ErrStopWalking error and refer
 // to the shortest-path tree, or use the WalkShortestPath method.
-func (g *UndirectedGraph[T]) WalkDijkstra(source T, walkFunc WalkFunc[T]) error {
+func (g *UndirectedGraph[T]) walkDijkstra(source T, walkFunc WalkFunc[T]) error {
 	if err := g.initializeSourceVertex(source); err != nil {
 		return err
 	}
@@ -702,7 +702,7 @@ func (g *UndirectedGraph[T]) WalkShortestPath(source T, dest T, walkFunc WalkFun
 		return nil
 	}
 
-	if err := g.WalkDijkstra(source, walker); err != nil {
+	if err := g.walkDijkstra(source, walker); err != nil {
 		return err
 	}
 
