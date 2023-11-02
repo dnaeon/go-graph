@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -175,6 +176,9 @@ type Graph[T comparable] interface {
 	// GetVertex returns the vertex associated with the given value
 	GetVertex(v T) *Vertex[T]
 
+	// DeleteVertex deletes the vertex associated with the given value
+	DeleteVertex(v T)
+
 	// VertexExists is a predicate for testing whether a vertex
 	// associated with the value exists.
 	VertexExists(v T) bool
@@ -196,6 +200,10 @@ type Graph[T comparable] interface {
 	// GetEdge returns the edge, which connects `from` and `to`
 	// vertices
 	GetEdge(from, to T) *Edge[T]
+
+	// DeleteEdge deletes the edge which connects `from` and `to`
+	// vertices
+	DeleteEdge(from, to T)
 
 	// EdgeExists is a predicate for testing whether an edge
 	// between `from` and `to` exists
@@ -354,6 +362,23 @@ func (g *UndirectedGraph[T]) AddVertex(value T) *Vertex[T] {
 	return vertex
 }
 
+// DeleteVertex removes a vertex from the graph
+func (g *UndirectedGraph[T]) DeleteVertex(v T) {
+	if !g.VertexExists(v) {
+		return
+	}
+
+	// Delete edges in the graph, which connect V with any other
+	// vertex
+	neighbours := g.GetNeighbours(v)
+	for _, u := range neighbours {
+		g.DeleteEdge(v, u)
+	}
+
+	// Delete the vertex itself
+	delete(g.vertices, v)
+}
+
 // GetEdge returns the edge connecting the two vertices
 func (g *UndirectedGraph[T]) GetEdge(from, to T) *Edge[T] {
 	for _, e := range g.edges {
@@ -363,6 +388,33 @@ func (g *UndirectedGraph[T]) GetEdge(from, to T) *Edge[T] {
 	}
 
 	return nil
+}
+
+// DeleteEdge deletes the edge, which connects the `from` and `to`
+// vertices
+func (g *UndirectedGraph[T]) DeleteEdge(from, to T) {
+	if !g.EdgeExists(from, to) {
+		return
+	}
+
+	for idx, e := range g.edges {
+		if (e.From == from && e.To == to) || (e.From == to && e.To == from) {
+			g.edges = slices.Delete(g.edges, idx, idx+1)
+		}
+	}
+
+	// Update the adjacency lists
+	for idx, v := range g.adjacencyLists[from] {
+		if v == to {
+			g.adjacencyLists[from] = slices.Delete(g.adjacencyLists[from], idx, idx+1)
+		}
+	}
+
+	for idx, v := range g.adjacencyLists[to] {
+		if v == from {
+			g.adjacencyLists[to] = slices.Delete(g.adjacencyLists[to], idx, idx+1)
+		}
+	}
 }
 
 // EdgeExists returns a boolean indicating whether an edge between two
@@ -827,4 +879,26 @@ func (g *DirectedGraph[T]) GetEdge(from, to T) *Edge[T] {
 	}
 
 	return nil
+}
+
+// DeleteEdge deletes the edge, which connects the `from` and `to`
+// vertices
+func (g *DirectedGraph[T]) DeleteEdge(from, to T) {
+	if !g.EdgeExists(from, to) {
+		return
+	}
+
+	// Remove the edge itself
+	for idx, e := range g.edges {
+		if e.From == from && e.To == to {
+			g.edges = slices.Delete(g.edges, idx, idx+1)
+		}
+	}
+
+	// Update the adjacency lists
+	for idx, v := range g.adjacencyLists[from] {
+		if v == to {
+			g.adjacencyLists[from] = slices.Delete(g.adjacencyLists[from], idx, idx+1)
+		}
+	}
 }
