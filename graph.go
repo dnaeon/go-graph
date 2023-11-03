@@ -446,10 +446,11 @@ func (g *UndirectedGraph[T]) DeleteVertex(v T) {
 	}
 
 	// Delete edges in the graph, which connect V with any other
-	// vertex
-	neighbours := g.GetNeighbours(v)
-	for _, u := range neighbours {
-		g.DeleteEdge(v, u)
+	// vertex in the graph
+	for _, e := range g.GetEdges() {
+		if e.From == v || e.To == v {
+			g.DeleteEdge(e.From, e.To)
+		}
 	}
 
 	// Delete the vertex itself
@@ -492,6 +493,15 @@ func (g *UndirectedGraph[T]) DeleteEdge(from, to T) {
 			g.adjacencyLists[to] = slices.Delete(g.adjacencyLists[to], idx, idx+1)
 		}
 	}
+
+	// Update degree
+	fromV := g.GetVertex(from)
+	fromV.Degree.In -= 1
+	fromV.Degree.Out -= 1
+
+	toV := g.GetVertex(to)
+	toV.Degree.In -= 1
+	toV.Degree.Out -= 1
 }
 
 // EdgeExists returns a boolean indicating whether an edge between two
@@ -560,7 +570,7 @@ func (g *UndirectedGraph[T]) WalkDFS(source T, walkFunc WalkFunc[T]) error {
 		// Pop an item from the stack
 		v, err := stack.PopFront()
 		if err != nil {
-			return err
+			panic(err)
 		}
 
 		// Visit the neigbours of V
@@ -610,7 +620,7 @@ func (g *UndirectedGraph[T]) WalkBFS(source T, walkFunc WalkFunc[T]) error {
 		// Pop an item from the queue
 		v, err := queue.PopFront()
 		if err != nil {
-			return err
+			panic(err)
 		}
 
 		// Visit neighbours of V
@@ -969,4 +979,10 @@ func (g *DirectedGraph[T]) DeleteEdge(from, to T) {
 			g.adjacencyLists[from] = slices.Delete(g.adjacencyLists[from], idx, idx+1)
 		}
 	}
+
+	fromV := g.GetVertex(from)
+	fromV.Degree.Out -= 1
+
+	toV := g.GetVertex(to)
+	toV.Degree.In -= 1
 }
