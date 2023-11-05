@@ -948,6 +948,17 @@ func (g *DirectedGraph[T]) AddEdge(from, to T) *Edge[T] {
 	return e
 }
 
+// EdgeExists returns a boolean indicating whether an edge between two
+// vertices exists.
+func (g *DirectedGraph[T]) EdgeExists(from, to T) bool {
+	e := g.GetEdge(from, to)
+	if e != nil {
+		return true
+	}
+
+	return false
+}
+
 // GetEdge returns the edge connecting the two vertices
 func (g *DirectedGraph[T]) GetEdge(from, to T) *Edge[T] {
 	for _, e := range g.edges {
