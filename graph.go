@@ -132,6 +132,14 @@ type WalkFunc[T comparable] func(v *Vertex[T]) error
 // walking of the graph should be stopped.
 var ErrStopWalking = errors.New("walking stopped")
 
+// ErrCycleDetected is returned whenever a cycle has been detected in
+// the graph.
+var ErrCycleDetected = errors.New("cycle detected")
+
+// ErrIsNotDirectedGraph is returned whenever an operation cannot be
+// performed, because the graph is not directed.
+var ErrIsNotDirectedGraph = errors.New("graph is not directed")
+
 // Collector provides an easy way to collect vertices while walking a
 // graph
 type Collector[T comparable] struct {
@@ -234,6 +242,10 @@ type Graph[T comparable] interface {
 	// WalkUnreachableVertices walks over the vertices, which are
 	// unreachable from the given source vertex
 	WalkUnreachableVertices(source T, walkFunc WalkFunc[T]) error
+
+	// WalkTopoOrder walks over the vertices of a directed graph
+	// in topological order.
+	WalkTopoOrder(walkFunc WalkFunc[T]) error
 
 	// WriteDot formats the graph in Dot representation
 	WriteDot(w io.Writer) error
@@ -576,7 +588,8 @@ func (g *UndirectedGraph[T]) WalkDFS(source T, walkFunc WalkFunc[T]) error {
 		// Visit the neigbours of V
 		neighbours := g.GetNeighbourVertices(v.Value)
 		for _, u := range neighbours {
-			// First time seeing this neighbour vertex, push it to the stack
+			// First time seeing this neighbour vertex,
+			// push it to the stack
 			if u.Color == White {
 				u.Color = Gray
 				u.DistanceFromSource = v.DistanceFromSource + 1
@@ -825,6 +838,11 @@ func (g *UndirectedGraph[T]) WalkShortestPath(source T, dest T, walkFunc WalkFun
 	return nil
 }
 
+// WalkTopoOrder for undirected graphs is not supported
+func (g *UndirectedGraph[T]) WalkTopoOrder(walkFunc WalkFunc[T]) error {
+	return ErrIsNotDirectedGraph
+}
+
 // DefaultNodeAttributes represents the map of default attributes to
 // be applied for al nodes when representing the graph in Dot format.
 var DotDefaultNodeAttributes = DotAttributes{
@@ -923,6 +941,109 @@ func (g *UndirectedGraph[T]) WriteDot(w io.Writer) error {
 // DirectedGraph represents a directed graph
 type DirectedGraph[T comparable] struct {
 	UndirectedGraph[T]
+}
+
+// WalkTopoOrder performs a topological sort and walks over the
+// vertices in topological order.
+//
+// In case a cycle exists in the graph, WalkTopoOrder will return
+// ErrCycleDetected.
+//
+// In case ErrCycleDetected is returned, the vertices which remained
+// Gray are forming a cyclic path in the graph.
+func (g *DirectedGraph[T]) WalkTopoOrder(walkFunc WalkFunc[T]) error {
+	// Make sure to reset all vertex attributes
+	g.ResetVertexAttributes()
+
+	// A helper function, which performs post-order Depth-first
+	// Search (DFS) traversal of the graph, starting from the
+	// given source vertex.
+	//
+	// If a cycle is found, then this function will return
+	// ErrCycleDetected.
+	dfsPostOrder := func(source *Vertex[T]) ([]*Vertex[T], error) {
+		result := make([]*Vertex[T], 0)
+
+		// Vertex has already been visited
+		if source.Color == Black {
+			return result, nil
+		}
+
+		// Push source vertex to the stack and paint it
+		source.Color = Gray
+		stack := deque.New[*Vertex[T]]()
+		stack.PushFront(source)
+
+		for !stack.IsEmpty() {
+			// Don't pop a vertex from the stack yet, just peek to
+			// see if this vertex is ready
+			v, err := stack.PeekFront()
+			if err != nil {
+				panic(err)
+			}
+
+			isReady := true
+			neighbours := g.GetNeighbourVertices(v.Value)
+			for _, u := range neighbours {
+				if u.Color == White {
+					// First time seeing this neighbour
+					isReady = false
+					u.Color = Gray
+					u.DistanceFromSource = v.DistanceFromSource + 1
+					u.Parent = v
+					stack.PushFront(u)
+				} else if u.Color == Gray {
+					// Seen this neighbour before, cycle
+					// has been detected
+					return result, ErrCycleDetected
+				}
+			}
+
+			if isReady {
+				// The vertex is ready, pop it out
+				popped, err := stack.PopFront()
+				if err != nil {
+					panic(err)
+				}
+
+				// We are done with vertex V
+				popped.Color = Black
+				result = append(result, popped)
+			}
+		}
+
+		return result, nil
+	}
+
+	// Enqueue all vertices and perform post-order DFS on each
+	queue := deque.New[*Vertex[T]]()
+	for _, v := range g.vertices {
+		queue.PushBack(v)
+	}
+
+	for !queue.IsEmpty() {
+		v, err := queue.PopFront()
+		if err != nil {
+			panic(err)
+		}
+
+		ready, err := dfsPostOrder(v)
+		if err != nil {
+			return err
+		}
+
+		for _, u := range ready {
+			err := walkFunc(u)
+			if err == ErrStopWalking {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 // AddEdge adds an edge between two vertices in the graph
