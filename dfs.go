@@ -54,7 +54,7 @@ func WalkPreOrderDFS[T comparable](g Graph[T], source T, walkFunc WalkFunc[T]) e
 			panic(err)
 		}
 
-		// Visit the neigbours of V
+		// Visit the neighbours of V
 		neighbours := g.GetNeighbourVertices(v.Value)
 		for _, u := range neighbours {
 			// First time seeing this neighbour vertex,
