@@ -149,7 +149,7 @@ func main() {
 Consider the following undirected weighted graph. The edges in this
 graph represent the distance from vertex to the other.
 
-![Example Undirected Weighted Graph](./images/undirectd-weighted-1.svg)
+![Example Undirected Weighted Graph](./images/undirected-weighted-1.svg)
 
 The following code will print the shortest path between the given
 source and destination vertices, then paint the visited vertices in
@@ -213,7 +213,7 @@ func main() {
 This is what the shortest path between vertices `(1)` to `(8)` looks
 in Dot representation.
 
-![Example Undirected Weighted Graph - Painted](./images/undirectd-weighted-2.svg)
+![Example Undirected Weighted Graph - Painted](./images/undirected-weighted-2.svg)
 
 Make sure to also check the included [test cases](./graph_test.go) and
 [examples](./examples) directory from this repo.
