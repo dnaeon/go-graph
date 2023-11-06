@@ -13,7 +13,7 @@ in Go.
 
 ## Installation
 
-Executing the following command.
+Execute the following command.
 
 ``` shell
 go get -v gopkg.in/dnaeon/go-graph.v1
@@ -147,7 +147,7 @@ func main() {
 ```
 
 Consider the following undirected weighted graph. The edges in this
-graph represent the distance from vertex to the other.
+graph represent the distance between vertices in the graph.
 
 ![Example Undirected Weighted Graph](./images/undirected-weighted-1.svg)
 
@@ -210,8 +210,8 @@ func main() {
 }
 ```
 
-This is what the shortest path between vertices `(1)` to `(8)` looks
-in Dot representation.
+This is what the shortest path between vertices `(1)` and `(8)` looks
+like in Dot representation.
 
 ![Example Undirected Weighted Graph - Painted](./images/undirected-weighted-2.svg)
 
