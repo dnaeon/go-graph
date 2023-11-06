@@ -1,16 +1,33 @@
+// Copyright (c) 2023 Marin Atanasov Nikolov <dnaeon@gmail.com>
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions
+// are met:
+//
+//   1. Redistributions of source code must retain the above copyright
+//      notice, this list of conditions and the following disclaimer.
+//   2. Redistributions in binary form must reproduce the above copyright
+//      notice, this list of conditions and the following disclaimer in the
+//      documentation and/or other materials provided with the distribution.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
+
 package graph
 
 import (
 	"errors"
-	"fmt"
-	"io"
-	"math"
 	"slices"
-	"strconv"
-	"strings"
-
-	"gopkg.in/dnaeon/go-deque.v1"
-	"gopkg.in/dnaeon/go-priorityqueue.v1"
 )
 
 // Color represents the color with which a vertex is painted
@@ -132,14 +149,6 @@ type WalkFunc[T comparable] func(v *Vertex[T]) error
 // walking of the graph should be stopped.
 var ErrStopWalking = errors.New("walking stopped")
 
-// ErrCycleDetected is returned whenever a cycle has been detected in
-// the graph.
-var ErrCycleDetected = errors.New("cycle detected")
-
-// ErrIsNotDirectedGraph is returned whenever an operation cannot be
-// performed, because the graph is not directed.
-var ErrIsNotDirectedGraph = errors.New("graph is not directed")
-
 // Collector provides an easy way to collect vertices while walking a
 // graph
 type Collector[T comparable] struct {
@@ -227,28 +236,9 @@ type Graph[T comparable] interface {
 	// vertices
 	GetNeighbourVertices(v T) []*Vertex[T]
 
-	// WalkDFS performs a Depth-first Search (DFS) traversal of
-	// the graph, starting from the given source vertex
-	WalkDFS(source T, walkFunc WalkFunc[T]) error
-
-	// WalkBFS performs a Breadth-first Search (DFS) traversal of
-	// the graph, starting from the given source vertex
-	WalkBFS(source T, walkFunc WalkFunc[T]) error
-
-	// WalkShortestPath walks over the shortest path, which
-	// connects the given source and destination vertices.
-	WalkShortestPath(source T, dest T, walkFunc WalkFunc[T]) error
-
-	// WalkUnreachableVertices walks over the vertices, which are
-	// unreachable from the given source vertex
-	WalkUnreachableVertices(source T, walkFunc WalkFunc[T]) error
-
-	// WalkTopoOrder walks over the vertices of a directed graph
-	// in topological order.
-	WalkTopoOrder(walkFunc WalkFunc[T]) error
-
-	// WriteDot formats the graph in Dot representation
-	WriteDot(w io.Writer) error
+	// ResetVertexAttributes resets the attributes for all
+	// vertices in the graph
+	ResetVertexAttributes()
 
 	// NewCollector creates and returns a new collector
 	NewCollector() *Collector[T]
@@ -562,488 +552,9 @@ func (g *UndirectedGraph[T]) AddWeightedEdge(from, to T, weight float64) *Edge[T
 	return e
 }
 
-// WalkDFS performs Depth-first Search (DFS) traversal of the graph,
-// starting from the given source vertex.
-func (g *UndirectedGraph[T]) WalkDFS(source T, walkFunc WalkFunc[T]) error {
-	if !g.VertexExists(source) {
-		return fmt.Errorf("Source vertex %v not found in the graph", source)
-	}
-
-	// Make sure to reset all vertex attributes
-	g.ResetVertexAttributes()
-
-	// Push the source vertex to the stack and paint it
-	srcVertex := g.GetVertex(source)
-	srcVertex.Color = Gray
-	stack := deque.New[*Vertex[T]]()
-	stack.PushFront(srcVertex)
-
-	for !stack.IsEmpty() {
-		// Pop an item from the stack
-		v, err := stack.PopFront()
-		if err != nil {
-			panic(err)
-		}
-
-		// Visit the neigbours of V
-		neighbours := g.GetNeighbourVertices(v.Value)
-		for _, u := range neighbours {
-			// First time seeing this neighbour vertex,
-			// push it to the stack
-			if u.Color == White {
-				u.Color = Gray
-				u.DistanceFromSource = v.DistanceFromSource + 1
-				u.Parent = v
-				stack.PushFront(u)
-			}
-		}
-
-		walkErr := walkFunc(v)
-		if walkErr == ErrStopWalking {
-			return nil
-		}
-		if walkErr != nil {
-			return walkErr
-		}
-
-		// We are done with vertex V
-		v.Color = Black
-	}
-
-	return nil
-}
-
-// WalkBFS performs Breadth-first Search (BFS) traversal of the graph,
-// starting from the given source vertex.
-func (g *UndirectedGraph[T]) WalkBFS(source T, walkFunc WalkFunc[T]) error {
-	if !g.VertexExists(source) {
-		return fmt.Errorf("Source vertex %v not found in the graph", source)
-	}
-
-	// Make sure to reset all vertex attributes
-	g.ResetVertexAttributes()
-
-	// Push the source vertex to the queue and paint it
-	srcVertex := g.GetVertex(source)
-	srcVertex.Color = Gray
-	queue := deque.New[*Vertex[T]]()
-	queue.PushBack(srcVertex)
-
-	for !queue.IsEmpty() {
-		// Pop an item from the queue
-		v, err := queue.PopFront()
-		if err != nil {
-			panic(err)
-		}
-
-		// Visit neighbours of V
-		neighbours := g.GetNeighbourVertices(v.Value)
-		for _, u := range neighbours {
-			// First time seeing this vertex
-			if u.Color == White {
-				u.Color = Gray
-				u.DistanceFromSource = v.DistanceFromSource + 1
-				u.Parent = v
-				queue.PushBack(u)
-			}
-		}
-
-		walkErr := walkFunc(v)
-		if walkErr == ErrStopWalking {
-			return nil
-		}
-		if walkErr != nil {
-			return walkErr
-		}
-
-		// We are done with V
-		v.Color = Black
-	}
-
-	return nil
-}
-
-// WalkUnreachableVertices walks over the vertices which are
-// unreachable from the given source vertex
-func (g *UndirectedGraph[T]) WalkUnreachableVertices(source T, walkFunc WalkFunc[T]) error {
-	// In order to find all unreachable vertices we will first DFS
-	// traverse the graph.  The vertices which remain White after
-	// we've walked the graph are unreachable from the source
-	// vertex.
-	dummyDfsWalk := func(v *Vertex[T]) error {
-		return nil
-	}
-
-	if err := g.WalkDFS(source, dummyDfsWalk); err != nil {
-		return err
-	}
-
-	for _, v := range g.vertices {
-		if v.Color == White {
-			err := walkFunc(v)
-			if err == ErrStopWalking {
-				return nil
-			}
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-// Initializes the source vertex as part of Dijkstra's algorithm
-func (g *UndirectedGraph[T]) initializeSourceVertex(source T) error {
-	if !g.VertexExists(source) {
-		return fmt.Errorf("Source vertex %v not found in graph", source)
-	}
-
-	// Set tentative distance for all vertices
-	g.ResetVertexAttributes()
-	for _, v := range g.vertices {
-		v.DistanceFromSource = math.Inf(1)
-	}
-
-	// Initialize source vertex
-	srcV := g.GetVertex(source)
-	srcV.DistanceFromSource = 0.0
-
-	return nil
-}
-
-// Relaxes the edge as part of Dijkstra's algorithm
-func (g *UndirectedGraph[T]) relaxEdge(from, to T) error {
-	if !g.EdgeExists(from, to) {
-		return fmt.Errorf("No edge exists between %v and %v", from, to)
-	}
-
-	edge := g.GetEdge(from, to)
-	fromV := g.GetVertex(from)
-	toV := g.GetVertex(to)
-
-	// Compute alt distance and compare against current distance
-	alt := fromV.DistanceFromSource + edge.Weight
-	if alt < toV.DistanceFromSource {
-		toV.DistanceFromSource = alt
-		toV.Parent = fromV
-	}
-
-	return nil
-}
-
-// walkDijkstra implements Dijkstra's algorithm for finding the
-// shortest-path from a given source vertex to all other vertices in
-// the graph.
-//
-// This method will pass each visited vertex while traversing the
-// shortest path from the source vertex to each other vertex in the
-// graph.
-//
-// Note, that this method only constructs the shortest-path tree and
-// yields each visited vertex. In order to stop walking the graph
-// callers of this method should return ErrStopWalking error and refer
-// to the shortest-path tree, or use the WalkShortestPath method.
-func (g *UndirectedGraph[T]) walkDijkstra(source T, walkFunc WalkFunc[T]) error {
-	if err := g.initializeSourceVertex(source); err != nil {
-		return err
-	}
-
-	// Enqueue all vertices
-	queue := priorityqueue.New[*Vertex[T], float64](priorityqueue.MinHeap)
-	for _, v := range g.vertices {
-		queue.Put(v, v.DistanceFromSource)
-	}
-
-	for !queue.IsEmpty() {
-		item := queue.Get()
-		v := item.Value
-		// Relax edges connecting V and it's neighbours
-		for _, u := range g.GetNeighbourVertices(v.Value) {
-			oldDist := u.DistanceFromSource
-			if err := g.relaxEdge(v.Value, u.Value); err != nil {
-				return err
-			}
-			// Update the priority, if needed
-			if u.DistanceFromSource != oldDist {
-				queue.Update(u, u.DistanceFromSource)
-			}
-		}
-
-		err := walkFunc(v)
-		if err == ErrStopWalking {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// WalkShortestPath yields the vertices which represent the shortest
-// path between SOURCE and DEST.
-func (g *UndirectedGraph[T]) WalkShortestPath(source T, dest T, walkFunc WalkFunc[T]) error {
-	if !g.VertexExists(source) {
-		return fmt.Errorf("Source vertex %v not found in the graph", source)
-	}
-
-	if !g.VertexExists(dest) {
-		return fmt.Errorf("Destination vertex %v not found in the graph", source)
-	}
-
-	// A walker which stops walking the graph, as soon as we reach
-	// the destination vertex
-	walker := func(v *Vertex[T]) error {
-		if v.Value == dest {
-			return ErrStopWalking
-		}
-		return nil
-	}
-
-	if err := g.walkDijkstra(source, walker); err != nil {
-		return err
-	}
-
-	// Make our way from the destination vertex back to the source
-	// by following the relationships established by the
-	// shortest-path tree.
-	destV := g.GetVertex(dest)
-	result := make([]*Vertex[T], 0)
-	v := destV
-	for {
-		result = append(result, v)
-		if v.Value == source {
-			break
-		}
-
-		if v.Parent == nil {
-			return fmt.Errorf("No path exists between %v and %v", source, dest)
-		}
-		v = v.Parent
-	}
-
-	slices.Reverse(result)
-	for _, v := range result {
-		err := walkFunc(v)
-		if err == ErrStopWalking {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// WalkTopoOrder for undirected graphs is not supported
-func (g *UndirectedGraph[T]) WalkTopoOrder(walkFunc WalkFunc[T]) error {
-	return ErrIsNotDirectedGraph
-}
-
-// DefaultNodeAttributes represents the map of default attributes to
-// be applied for al nodes when representing the graph in Dot format.
-var DotDefaultNodeAttributes = DotAttributes{
-	"color":     "lightblue",
-	"fillcolor": "lightblue",
-	"fontcolor": "black",
-	"shape":     "record",
-	"style":     "filled, rounded",
-}
-
-// DotDefaultEdgeAttributes represents the map of default attributes
-// to be applied for all edges when representing the graph in Dot
-// format.
-var DotDefaultEdgeAttributes = DotAttributes{
-	"color": "black",
-}
-
-// dotId returns the unique node id, which is used when generating the
-// graph representation in Dot.
-func dotId(v any) int64 {
-	addr := fmt.Sprintf("%p", v)
-	id, err := strconv.ParseInt(addr[2:], 16, 64)
-	if err != nil {
-		panic(err)
-	}
-
-	return id
-}
-
-// formatDotAttributes formats the given map of attributes in Dot
-// format
-func formatDotAttributes(items DotAttributes) string {
-	attrs := ""
-	for k, v := range items {
-		attrs += fmt.Sprintf("%s=%q ", k, v)
-	}
-
-	return strings.TrimRight(attrs, " ")
-}
-
-// WriteDot generates the Dot representation of the graph
-func (g *UndirectedGraph[T]) WriteDot(w io.Writer) error {
-	var graphKind string
-	if g.kind == KindUndirected {
-		graphKind = "graph"
-	} else {
-		graphKind = "digraph"
-	}
-	if _, err := fmt.Fprintf(w, "strict %s {\n", graphKind); err != nil {
-		return err
-	}
-
-	// Default node attributes
-	if _, err := fmt.Fprintf(w, "\tnode [%s]\n", formatDotAttributes(DotDefaultNodeAttributes)); err != nil {
-		return err
-	}
-
-	// Default edge attributes
-	if _, err := fmt.Fprintf(w, "\tedge [%s]\n", formatDotAttributes(DotDefaultEdgeAttributes)); err != nil {
-		return err
-	}
-
-	for _, v := range g.vertices {
-		// Do we have a label?
-		_, ok := v.DotAttributes["label"]
-		if !ok {
-			v.DotAttributes["label"] = fmt.Sprintf("%v", v.Value)
-		}
-
-		_, err := fmt.Fprintf(w, "\t%d [%s]\n", dotId(v), formatDotAttributes(v.DotAttributes))
-		if err != nil {
-			return err
-		}
-
-		for _, u := range g.GetNeighbourVertices(v.Value) {
-			e := g.GetEdge(u.Value, v.Value)
-			var edgeArrow string
-			if g.kind == KindUndirected {
-				edgeArrow = "--"
-			} else {
-				edgeArrow = "->"
-			}
-
-			if _, err := fmt.Fprintf(w, "\t%d %s %d [%s]\n", dotId(v), edgeArrow, dotId(u), formatDotAttributes(e.DotAttributes)); err != nil {
-				return err
-			}
-		}
-	}
-
-	if _, err := fmt.Fprintln(w, "}"); err != nil {
-		return err
-	}
-	return nil
-}
-
 // DirectedGraph represents a directed graph
 type DirectedGraph[T comparable] struct {
 	UndirectedGraph[T]
-}
-
-// WalkTopoOrder performs a topological sort and walks over the
-// vertices in topological order.
-//
-// In case a cycle exists in the graph, WalkTopoOrder will return
-// ErrCycleDetected.
-//
-// In case ErrCycleDetected is returned, the vertices which remained
-// Gray are forming a cyclic path in the graph.
-func (g *DirectedGraph[T]) WalkTopoOrder(walkFunc WalkFunc[T]) error {
-	// Make sure to reset all vertex attributes
-	g.ResetVertexAttributes()
-
-	// A helper function, which performs post-order Depth-first
-	// Search (DFS) traversal of the graph, starting from the
-	// given source vertex.
-	//
-	// If a cycle is found, then this function will return
-	// ErrCycleDetected.
-	dfsPostOrder := func(source *Vertex[T]) ([]*Vertex[T], error) {
-		result := make([]*Vertex[T], 0)
-
-		// Vertex has already been visited
-		if source.Color == Black {
-			return result, nil
-		}
-
-		// Push source vertex to the stack and paint it
-		source.Color = Gray
-		stack := deque.New[*Vertex[T]]()
-		stack.PushFront(source)
-
-		for !stack.IsEmpty() {
-			// Don't pop a vertex from the stack yet, just peek to
-			// see if this vertex is ready
-			v, err := stack.PeekFront()
-			if err != nil {
-				panic(err)
-			}
-
-			isReady := true
-			neighbours := g.GetNeighbourVertices(v.Value)
-			for _, u := range neighbours {
-				if u.Color == White {
-					// First time seeing this neighbour
-					isReady = false
-					u.Color = Gray
-					u.DistanceFromSource = v.DistanceFromSource + 1
-					u.Parent = v
-					stack.PushFront(u)
-				} else if u.Color == Gray {
-					// Seen this neighbour before, cycle
-					// has been detected
-					return result, ErrCycleDetected
-				}
-			}
-
-			if isReady {
-				// The vertex is ready, pop it out
-				popped, err := stack.PopFront()
-				if err != nil {
-					panic(err)
-				}
-
-				// We are done with vertex V
-				popped.Color = Black
-				result = append(result, popped)
-			}
-		}
-
-		return result, nil
-	}
-
-	// Enqueue all vertices and perform post-order DFS on each
-	queue := deque.New[*Vertex[T]]()
-	for _, v := range g.vertices {
-		queue.PushBack(v)
-	}
-
-	for !queue.IsEmpty() {
-		v, err := queue.PopFront()
-		if err != nil {
-			panic(err)
-		}
-
-		ready, err := dfsPostOrder(v)
-		if err != nil {
-			return err
-		}
-
-		for _, u := range ready {
-			err := walkFunc(u)
-			if err == ErrStopWalking {
-				return nil
-			}
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
 }
 
 // AddEdge adds an edge between two vertices in the graph
