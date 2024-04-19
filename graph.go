@@ -449,7 +449,8 @@ func (g *UndirectedGraph[T]) DeleteVertex(v T) {
 
 	// Delete edges in the graph, which connect V with any other
 	// vertex in the graph
-	for _, e := range g.GetEdges() {
+	edges := slices.Clone(g.GetEdges())
+	for _, e := range edges {
 		if e.From == v || e.To == v {
 			g.DeleteEdge(e.From, e.To)
 		}
@@ -477,20 +478,23 @@ func (g *UndirectedGraph[T]) DeleteEdge(from, to T) {
 		return
 	}
 
-	for idx, e := range g.edges {
+	edges := slices.Clone(g.edges)
+	for idx, e := range edges {
 		if (e.From == from && e.To == to) || (e.From == to && e.To == from) {
 			g.edges = slices.Delete(g.edges, idx, idx+1)
 		}
 	}
 
 	// Update the adjacency lists
-	for idx, v := range g.adjacencyLists[from] {
+	adjList := slices.Clone(g.adjacencyLists[from])
+	for idx, v := range adjList {
 		if v == to {
 			g.adjacencyLists[from] = slices.Delete(g.adjacencyLists[from], idx, idx+1)
 		}
 	}
 
-	for idx, v := range g.adjacencyLists[to] {
+	adjList = slices.Clone(g.adjacencyLists[to])
+	for idx, v := range adjList {
 		if v == from {
 			g.adjacencyLists[to] = slices.Delete(g.adjacencyLists[to], idx, idx+1)
 		}
@@ -610,14 +614,16 @@ func (g *DirectedGraph[T]) DeleteEdge(from, to T) {
 	}
 
 	// Remove the edge itself
-	for idx, e := range g.edges {
+	edges := slices.Clone(g.edges)
+	for idx, e := range edges {
 		if e.From == from && e.To == to {
 			g.edges = slices.Delete(g.edges, idx, idx+1)
 		}
 	}
 
 	// Update the adjacency lists
-	for idx, v := range g.adjacencyLists[from] {
+	adjList := slices.Clone(g.adjacencyLists[from])
+	for idx, v := range adjList {
 		if v == to {
 			g.adjacencyLists[from] = slices.Delete(g.adjacencyLists[from], idx, idx+1)
 		}
@@ -628,4 +634,23 @@ func (g *DirectedGraph[T]) DeleteEdge(from, to T) {
 
 	toV := g.GetVertex(to)
 	toV.Degree.In -= 1
+}
+
+// DeleteVertex removes a vertex from the graph
+func (g *DirectedGraph[T]) DeleteVertex(v T) {
+	if !g.VertexExists(v) {
+		return
+	}
+
+	// Delete edges in the graph, which connect V with any other
+	// vertex in the graph
+	edges := slices.Clone(g.GetEdges())
+	for _, e := range edges {
+		if e.From == v || e.To == v {
+			g.DeleteEdge(e.From, e.To)
+		}
+	}
+
+	// Delete the vertex itself
+	delete(g.vertices, v)
 }
