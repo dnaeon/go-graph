@@ -245,6 +245,9 @@ type Graph[T comparable] interface {
 
 	// Clone creates a new copy of the graph
 	Clone() Graph[T]
+
+	// GetDotAttribute returns the Dot attributes for the graph
+	GetDotAttributes() DotAttributes
 }
 
 // UndirectedGraph represents an undirected graph
@@ -260,6 +263,10 @@ type UndirectedGraph[T comparable] struct {
 
 	// The kind of the graph
 	kind GraphKind
+
+	// dotAttributes represents the list of attributes associated with the
+	// graph.
+	dotAttributes DotAttributes
 }
 
 // NewGraph creates a new graph
@@ -269,6 +276,7 @@ func New[T comparable](kind GraphKind) Graph[T] {
 		edges:          make([]*Edge[T], 0),
 		adjacencyLists: make(map[T][]T),
 		kind:           kind,
+		dotAttributes:  make(DotAttributes),
 	}
 
 	if kind == KindDirected {
@@ -278,6 +286,11 @@ func New[T comparable](kind GraphKind) Graph[T] {
 	}
 
 	return &g
+}
+
+// GetDotAttributes returns the list of attributes for the graph.
+func (g *UndirectedGraph[T]) GetDotAttributes() DotAttributes {
+	return g.dotAttributes
 }
 
 // Clone creates a new copy of the graph.

@@ -87,6 +87,11 @@ func WriteDot[T comparable](g Graph[T], w io.Writer) error {
 		return err
 	}
 
+	// Graph attributes
+	if _, err := fmt.Fprintf(w, "\t%s\n", formatDotAttributes(g.GetDotAttributes())); err != nil {
+		return err
+	}
+
 	// Default node attributes
 	if _, err := fmt.Fprintf(w, "\tnode [%s]\n", formatDotAttributes(DotDefaultNodeAttributes)); err != nil {
 		return err
