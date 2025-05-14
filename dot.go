@@ -106,7 +106,7 @@ func WriteDot[T comparable](g Graph[T], w io.Writer) error {
 		// Do we have a label?
 		_, ok := v.DotAttributes["label"]
 		if !ok {
-			v.DotAttributes["label"] = fmt.Sprintf("%v", v.Value)
+			v.DotAttributes["label"] = v.Label
 		}
 
 		_, err := fmt.Fprintf(w, "\t%d [%s]\n", dotId(v), formatDotAttributes(v.DotAttributes))
