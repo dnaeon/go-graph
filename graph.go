@@ -29,6 +29,8 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+
+	"github.com/go-echarts/go-echarts/v2/opts"
 )
 
 // Color represents the color with which a vertex is painted
@@ -100,6 +102,22 @@ type Vertex[T comparable] struct {
 
 	// Degree represents the degree of the vertex
 	Degree Degree
+
+	// EchartsStyle represents the style in which to render the vertex when
+	// generating the graph representation using go-echarts.
+	EchartsStyle *opts.ItemStyle
+
+	// EchartsShape represents the shape of the vertex when rendering the
+	// graph using go-echarts. Possible values include 'circle', 'rect',
+	// 'roundRect', 'diamond', etc.  Please refer to the echarts
+	// documentation for possible values for the vertex symbol.
+	EchartsSymbol string
+
+	// EchartsSymbolSize specifies the size of the vertex. It can be set to
+	// single numbers like 10, or as an array to represent width and
+	// height. For example, [20, 10] means symbol width is 20, and height
+	// is 10.
+	EchartsSymbolSize any
 }
 
 // NewVertex creates a new vertex with the given value
@@ -135,6 +153,14 @@ type Edge[T comparable] struct {
 	// with the edge. The attributes will be used when
 	// generating the Dot representation of the graph.
 	DotAttributes DotAttributes
+
+	// EchartsLineStyle represents the style in which to render the edge when
+	// generating the graph representation using go-echarts.
+	EchartsLineStyle *opts.LineStyle
+
+	// EchartsEdgeLabel represents edge label settings when rendering the
+	// graph using go-echarts.
+	EchartsEdgeLabel *opts.EdgeLabel
 }
 
 // NewEdge creates an edge, which connects the given vertices
