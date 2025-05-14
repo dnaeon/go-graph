@@ -27,6 +27,7 @@ package graph
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 )
 
@@ -71,6 +72,9 @@ type Degree struct {
 
 // Vertex represents a vertex in the graph
 type Vertex[T comparable] struct {
+	// Label represents the label for the vertex
+	Label string
+
 	// Value contains the value for the vertex
 	Value T
 
@@ -101,6 +105,7 @@ type Vertex[T comparable] struct {
 // NewVertex creates a new vertex with the given value
 func NewVertex[T comparable](value T) *Vertex[T] {
 	v := &Vertex[T]{
+		Label:              fmt.Sprintf("%v", value),
 		Value:              value,
 		Color:              White,
 		DistanceFromSource: 0.0,
@@ -114,6 +119,9 @@ func NewVertex[T comparable](value T) *Vertex[T] {
 
 // Edge represents an edge connecting two vertices in the graph
 type Edge[T comparable] struct {
+	// Label represents the label for the edge
+	Label string
+
 	// From represents the source vertex of the edge
 	From T
 
