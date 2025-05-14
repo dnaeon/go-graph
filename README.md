@@ -215,6 +215,14 @@ like in Dot representation.
 
 ![Example Undirected Weighted Graph - Painted](./images/undirected-weighted-2.svg)
 
+Graphs can also be rendered using
+[go-echarts](https://github.com/go-echarts/go-echarts). The
+[examples/shortest-path-echarts](./examples/shortest-path-echarts) example is
+similar to the shortest-path example above, but instead of rendering in Dot
+representation it renders the graph using `echarts`.
+
+![Shortest Path using go-echarts](./images/shortest-path-echarts.png)
+
 Make sure to also check the included [test cases](./graph_test.go) and
 [examples](./examples) directory from this repo.
 
