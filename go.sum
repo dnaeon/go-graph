@@ -10,6 +10,8 @@ github.com/stretchr/testify v1.6.0 h1:jlIyCplCJFULU/01vCkhKuTyc3OorI3bJFuw6obfgh
 github.com/stretchr/testify v1.6.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 gopkg.in/dnaeon/go-deque.v1 v1.0.0-20250203064611-7d48f7299755 h1:wB8d7G8z0rrFgS/Wr16pBVL3MxFp8M+/fTJGcBAxn1k=
 gopkg.in/dnaeon/go-deque.v1 v1.0.0-20250203064611-7d48f7299755/go.mod h1:mAZ2p0oPgDAeRlUKq3IJOE9RvqVvA3BIA4WKxG/9zDM=
+gopkg.in/dnaeon/go-deque.v1 v1.0.0-20250925160118-92c6ee72e995 h1:sT7Bgid+1CNWXXrLpYj/7S3u8s0WXMNlIIVOFxjBRx4=
+gopkg.in/dnaeon/go-deque.v1 v1.0.0-20250925160118-92c6ee72e995/go.mod h1:mAZ2p0oPgDAeRlUKq3IJOE9RvqVvA3BIA4WKxG/9zDM=
 gopkg.in/dnaeon/go-priorityqueue.v1 v1.1.1 h1:AS4IIyStH/47cZpPdBk/Db6QXg+UmcDjZvSOoDgGsbU=
 gopkg.in/dnaeon/go-priorityqueue.v1 v1.1.1/go.mod h1:JNUtwj2QQsBHhsIHNjxdDaSmLW4RZtvJHO8VYtsMkY4=
 gopkg.in/yaml.v3 v3.0.0 h1:hjy8E9ON/egN1tAYqKb61G10WtihqetD4sz2H+8nIeA=
