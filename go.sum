@@ -6,8 +6,8 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/testify v1.6.0 h1:jlIyCplCJFULU/01vCkhKuTyc3OorI3bJFuw6obfgho=
 github.com/stretchr/testify v1.6.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
-gopkg.in/dnaeon/go-deque.v1 v1.0.0-20250926082955-0627070af3b0 h1:0lGmV/TJSnt0GTSoFcvWooB2bSbf3HDvMV3DRQEy9k4=
-gopkg.in/dnaeon/go-deque.v1 v1.0.0-20250926082955-0627070af3b0/go.mod h1:mAZ2p0oPgDAeRlUKq3IJOE9RvqVvA3BIA4WKxG/9zDM=
+gopkg.in/dnaeon/go-deque.v1 v1.0.0-20251121085639-531ddbf8ba89 h1:f57Zx1Z3ra8DIWshzggo869Hx1cpIhCxMyLAsN9+OfQ=
+gopkg.in/dnaeon/go-deque.v1 v1.0.0-20251121085639-531ddbf8ba89/go.mod h1:mAZ2p0oPgDAeRlUKq3IJOE9RvqVvA3BIA4WKxG/9zDM=
 gopkg.in/dnaeon/go-priorityqueue.v1 v1.1.1 h1:AS4IIyStH/47cZpPdBk/Db6QXg+UmcDjZvSOoDgGsbU=
 gopkg.in/dnaeon/go-priorityqueue.v1 v1.1.1/go.mod h1:JNUtwj2QQsBHhsIHNjxdDaSmLW4RZtvJHO8VYtsMkY4=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
