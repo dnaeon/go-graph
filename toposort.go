@@ -87,27 +87,41 @@ func WalkTopoOrder[T comparable](g Graph[T], walkFunc WalkFunc[T]) error {
 	// Make sure to reset all vertex attributes
 	g.ResetVertexAttributes()
 
-	// A helper function, which performs post-order Depth-first
-	// Search (DFS) traversal of the graph, starting from the
-	// given source vertex.
+	// A helper function, which performs post-order Depth-first Search (DFS)
+	// traversal of the graph, starting from the given source vertex.
 	//
-	// If a cycle is found, then this function will return
-	// ErrCycleDetected.
+	// If a cycle is found, then this function will return a *CycleError.
 	//
-	// This function almost identical to WalkPostOrderDFS, except
-	// for the fact that we don't reset the vertex attributes
-	// while performing DFS on each vertex, and also we return a
-	// *CycleError whenever we detect a cycle in the graph.
+	// This function is almost identical to WalkPostOrderDFS, except for the
+	// fact that we don't reset the vertex attributes while performing DFS
+	// on each vertex, and also we return a *CycleError whenever we detect a
+	// cycle in the graph.
+	//
+	// The three vertex colors carry a strict meaning here, which is what
+	// makes cycle detection correct:
+	//
+	//   - White: the vertex has not been discovered yet.
+	//   - Gray:  the vertex has been entered and is currently on the
+	//            active DFS path, i.e. it is an ancestor of the
+	//            vertex being scanned.
+	//   - Black: the vertex and all of its descendants are fully
+	//            explored.
+	//
+	// A vertex is painted Gray only when its own frame becomes active (the
+	// first time it is peeked), NOT when it is first discovered as a
+	// neighbour. This ensures that a Gray neighbour is always a genuine
+	// ancestor on the current path, so a back edge (and hence a cycle) is
+	// reported only when one truly exists. Painting Gray at discovery time
+	// would misreport a shared successor (e.g. the L in P->L, P->M, M->L)
+	// as a cycle.
 	dfsPostOrder := func(source *Vertex[T]) ([]*Vertex[T], error) {
 		result := make([]*Vertex[T], 0)
 
-		// Vertex has already been visited
+		// Vertex has already been fully explored
 		if source.Color == Black {
 			return result, nil
 		}
 
-		// Push source vertex to the stack and paint it
-		source.Color = Gray
 		stack := deque.New[*Vertex[T]]()
 		stack.PushFront(source)
 
@@ -119,21 +133,43 @@ func WalkTopoOrder[T comparable](g Graph[T], walkFunc WalkFunc[T]) error {
 				panic(err)
 			}
 
+			// The vertex may have been finished via another path
+			// after it was pushed, or pushed more than once by
+			// different parents. If it is already Black, discard
+			// this stale stack entry.
+			if v.Color == Black {
+				if _, err := stack.PopFront(); err != nil {
+					panic(err)
+				}
+				continue
+			}
+
+			// First time we peek this vertex: its frame becomes
+			// active, so paint it Gray to mark it as being on the
+			// current DFS path.
+			v.Color = Gray
+
 			isReady := true
 			neighbours := g.GetNeighbourVertices(v.Value)
 			for _, u := range neighbours {
-				if u.Color == White {
-					// First time seeing this neighbour
+				switch u.Color {
+				case White:
+					// First time seeing this neighbour. Only
+					// discover it (push it); it is painted Gray
+					// when its own frame becomes active.
 					isReady = false
-					u.Color = Gray
 					u.DistanceFromSource = v.DistanceFromSource + 1
 					u.Parent = v
 					stack.PushFront(u)
-				} else if u.Color == Gray {
-					// Seen this neighbour before, cycle
-					// has been detected. Reconstruct the
-					// exact cycle from the Parent chain.
+				case Gray:
+					// The neighbour is on the current DFS path,
+					// so this is a back edge: a cycle has been
+					// detected. Reconstruct the exact cycle from
+					// the Parent chain.
 					return result, &CycleError[T]{Cycle: buildCycle(v, u)}
+				case Black:
+					// Already fully explored, not part of a
+					// cycle.
 				}
 			}
 
