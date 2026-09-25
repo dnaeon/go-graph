@@ -220,30 +220,3 @@ func WalkTopoOrder[T comparable](g Graph[T], walkFunc WalkFunc[T]) error {
 	return nil
 }
 
-// FindCycle returns the first cycle found in a directed graph, or nil if the
-// graph is acyclic. The returned slice starts and ends with the same vertex,
-// e.g. for the edges 1->2->3->1 it is [1 2 3 1].
-//
-// FindCycle returns [ErrIsNotDirectedGraph] if the graph is not directed.
-//
-// If the graph contains more than one cycle, only the first one encountered is
-// returned. Which cycle that is depends on the internal iteration order and
-// should not be relied upon.
-func FindCycle[T comparable](g Graph[T]) ([]*Vertex[T], error) {
-	noop := func(v *Vertex[T]) error {
-		return nil
-	}
-
-	err := WalkTopoOrder(g, noop)
-	if err == nil {
-		return nil, nil
-	}
-
-	var cycleErr *CycleError[T]
-	if errors.As(err, &cycleErr) {
-		return cycleErr.Cycle, nil
-	}
-
-	// Some other error, e.g. ErrIsNotDirectedGraph
-	return nil, err
-}
