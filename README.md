@@ -116,6 +116,91 @@ Topo order:
 1
 ```
 
+A topological sort is only possible on a Directed Acyclic Graph (DAG).  When the
+graph contains a cycle, `WalkTopoOrder` fails with a `*CycleError`, which wraps
+`ErrCycleDetected` and carries one cycle as a witness. This makes it a
+convenient way to answer _"is this graph a DAG?"_.
+
+To find __all__ the cycles in a graph, rather than a single one, use
+`StronglyConnectedComponents` and `WalkCycles`. A strongly connected component
+with more than one vertex (or a single vertex with a self-loop) is a cyclic
+cluster, and `WalkCycles` walks over the cycles, invoking the walker once per
+cluster with a representative cycle.
+
+The following code creates a directed graph with two independent cycles, then
+uses `WalkCycles` to paint the vertices and edges forming each cycle in red, so
+they stand out when the graph is rendered. See the
+[examples/cycles](./examples/cycles) example for the full source.
+
+``` go
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"gopkg.in/dnaeon/go-graph.v1"
+)
+
+func main() {
+	g := graph.New[int](graph.KindDirected)
+
+	// Acyclic spine with a shared successor.
+	g.AddEdge(1, 2)
+	g.AddEdge(1, 3)
+	g.AddEdge(2, 4)
+	g.AddEdge(3, 4)
+	g.AddEdge(4, 5)
+
+	// Two-node cycle: 10 <-> 11.
+	g.AddEdge(1, 10)
+	g.AddEdge(10, 11)
+	g.AddEdge(11, 10)
+
+	// Three-node cycle: 20 -> 21 -> 22 -> 20.
+	g.AddEdge(1, 20)
+	g.AddEdge(20, 21)
+	g.AddEdge(21, 22)
+	g.AddEdge(22, 20)
+
+	// Paint the vertices and edges forming each cycle in red.
+	cycleWalker := func(cycle []*graph.Vertex[int]) error {
+		for i, v := range cycle {
+			v.DotAttributes["color"] = "red"
+			v.DotAttributes["fillcolor"] = "red"
+
+			if i > 0 {
+				edge := g.GetEdge(cycle[i-1].Value, v.Value)
+				edge.DotAttributes["color"] = "red"
+			}
+		}
+
+		return nil
+	}
+	if err := graph.WalkCycles(g, cycleWalker); err != nil {
+		fmt.Printf("WalkCycles: %s\n", err)
+		return
+	}
+
+	// Emit the Dot representation, with the cycles painted red.
+	if err := graph.WriteDot(g, os.Stdout); err != nil {
+		fmt.Println(err)
+	}
+}
+```
+
+Render the output with `graphviz`, e.g.
+
+``` shell
+go run ./examples/cycles/main.go | dot -T svg -o cycles.svg
+```
+
+The cyclic vertices and edges (`10 <-> 11` and `20 -> 21 -> 22 -> 20`)
+are painted red, while the acyclic part of the graph keeps its default
+color.
+
+![Example Directed Graph with Cycles Painted](./images/cycles.svg)
+
 Generate the [Dot
 representation](https://graphviz.org/doc/info/lang.html) for a graph.
 
